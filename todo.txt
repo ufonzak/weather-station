@@ -1,0 +1,10 @@
+Get better 5V LDO
+Make connectors
+Test sensors
+GSM Echo Off
+GSM code quality
+Measure Ref and BAT voltage
+Experiment with Sleep
+Cutoff GSM
+Get Box
+Measure bat temp

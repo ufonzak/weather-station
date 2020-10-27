@@ -3,6 +3,11 @@ String cmd;
 
 #define GSM_STATUS_PIN (12)
 #define GSM_POWER_PIN (5)
+#define VIN_VOLTAGE_PIN (A0)
+#define BAT_VOLTAGE_PIN (A1)
+#define SOLAR_VOLTAGE_PIN (A2)
+#define VOLTAGE_REF_COEF (0.006472)
+#define VOLTAGE_SOLAR_COEF (0.01030)
 
 #define INFO_PERIOD (3600)
 int infoSeconds = 0;
@@ -220,10 +225,20 @@ bool sendInfo() {
     return false;
   }
   
-  if (!sendSms1("7785225231")) {
+  float voltageVin = analogRead(VIN_VOLTAGE_PIN) * VOLTAGE_REF_COEF;
+  float voltageBattery = analogRead(BAT_VOLTAGE_PIN) * VOLTAGE_REF_COEF;
+  float voltageSolar = analogRead(SOLAR_VOLTAGE_PIN) * VOLTAGE_SOLAR_COEF;
+  
+  if (!sendSms1("2267814018")) {
     return false;
   }
   Serial1.print(info);
+  Serial1.print(",");
+  Serial1.print(voltageVin);
+  Serial1.print(",");
+  Serial1.print(voltageBattery);
+  Serial1.print(",");
+  Serial1.print(voltageSolar);
   if (!sendSms2()) {
     return false;
   }
@@ -237,12 +252,16 @@ void setup()
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(GSM_STATUS_PIN, INPUT);
   pinMode(GSM_POWER_PIN, OUTPUT);
+  pinMode(BAT_VOLTAGE_PIN, INPUT);
+  pinMode(SOLAR_VOLTAGE_PIN, INPUT);
+  pinMode(VIN_VOLTAGE_PIN, INPUT);
+  
   digitalWrite(GSM_POWER_PIN, HIGH);
   
   Serial.begin(9600);
   Serial1.begin(9600);
 
-  infoSeconds = INFO_PERIOD - 120;
+  // infoSeconds = INFO_PERIOD - 120;
 }
 
 void loop() // run over and over
@@ -269,6 +288,16 @@ void loop() // run over and over
       turnOn();
     } else if (cmd.compareTo("off") == 0) {
       turnOff();
+    } else if (cmd.compareTo("analog") == 0) {
+      float voltageVin = analogRead(VIN_VOLTAGE_PIN) * VOLTAGE_REF_COEF;
+      float voltageBattery = analogRead(BAT_VOLTAGE_PIN) * VOLTAGE_REF_COEF;
+      float voltageSolar = analogRead(SOLAR_VOLTAGE_PIN) * VOLTAGE_SOLAR_COEF;
+      Serial.print(voltageVin);
+      Serial.print(",");
+      Serial.print(voltageBattery);
+      Serial.print(",");
+      Serial.print(voltageSolar);
+      Serial.println();
     } else if (cmd.compareTo("direct") == 0) {
       while(true) {
         if (Serial1.available()) {
@@ -284,8 +313,8 @@ void loop() // run over and over
   }
     
   digitalWrite(LED_BUILTIN, HIGH);
-  delay(200);
-  
+  delay(200);  
+
   if (++infoSeconds >= INFO_PERIOD) {
     infoSeconds = 0;
     
