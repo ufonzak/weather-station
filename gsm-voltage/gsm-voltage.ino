@@ -8,6 +8,9 @@
 // #define GATEWAY "7785225231" 
 #define GATEWAY "2267814018"
 
+#define PIN_DIRECT_SUPPLY (9)
+#define PIN_REGULATED_SUUPLY (6)
+
 #define INFO_PERIOD (3600)
 int infoSeconds = 0;
 
@@ -302,6 +305,31 @@ void procesInput() {
   }
 }
 
+bool isPowerSupplyDirect;
+
+#define POWER_SUPPLY_DIRECT (true)
+#define POWER_SUPPLY_REGULATED (false)
+
+void setPowerSupply(bool directOrRegulated) {
+  digitalWrite(directOrRegulated ? PIN_DIRECT_SUPPLY : PIN_REGULATED_SUUPLY, HIGH);
+  delay(500);      
+  digitalWrite(directOrRegulated ? PIN_DIRECT_SUPPLY : PIN_REGULATED_SUUPLY, LOW); 
+  
+  isPowerSupplyDirect = directOrRegulated; 
+}
+
+void checkPowerSupply() {
+  float voltageSolar = analogRead(SOLAR_VOLTAGE_PIN) * VOLTAGE_SOLAR_COEF;
+
+  bool shouldRegulate = voltageSolar > 6.5;
+  bool shouldDirect = voltageSolar < 6.0;
+  if (isPowerSupplyDirect && shouldRegulate) {
+    setPowerSupply(POWER_SUPPLY_REGULATED);
+  } else if (!isPowerSupplyDirect && shouldDirect) {
+    setPowerSupply(POWER_SUPPLY_DIRECT);
+  }
+}
+
 void setup()
 {
   pinMode(LED_BUILTIN, OUTPUT);
@@ -312,6 +340,10 @@ void setup()
   pinMode(VIN_VOLTAGE_PIN, INPUT);
   
   digitalWrite(GSM_POWER_PIN, HIGH);
+
+  pinMode(PIN_DIRECT_SUPPLY, OUTPUT);
+  pinMode(PIN_REGULATED_SUUPLY, OUTPUT);
+  setPowerSupply(POWER_SUPPLY_DIRECT);
   
   Serial.begin(9600);
   Serial1.begin(9600);
@@ -323,6 +355,7 @@ void loop()
 {
   procesInput();
   readSolarVoltage();
+  checkPowerSupply();
 
   digitalWrite(LED_BUILTIN, HIGH);
   delay(200);  
