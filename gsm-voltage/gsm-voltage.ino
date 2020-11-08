@@ -1,200 +1,19 @@
-#define GSM_STATUS_PIN (12)
-#define GSM_POWER_PIN (5)
 #define VIN_VOLTAGE_PIN (A0)
 #define BAT_VOLTAGE_PIN (A1)
 #define SOLAR_VOLTAGE_PIN (A2)
 #define VOLTAGE_REF_COEF (0.006472)
 #define VOLTAGE_SOLAR_COEF (0.01030)
-// #define GATEWAY "7785225231" 
+
+// #define GATEWAY "7785225231"
 #define GATEWAY "2267814018"
 
 #define SOLAR_POWER_ENABLED_PIN (6)
 
 #define INFO_PERIOD (3600)
+
+#include "gsm.h"
+
 int infoSeconds = 0;
-
-bool turnOn() {
-  Serial.println("Powering On...");
-  
-  bool isOn = digitalRead(GSM_STATUS_PIN) == HIGH;
-  if (isOn) {
-    return true;
-  }
-
-  digitalWrite(GSM_POWER_PIN, LOW);
-  delay(2000);
-  digitalWrite(GSM_POWER_PIN, HIGH);
-
-  for (int att = 5; att > 0 && !isOn; att--) {
-    delay(1000);
-    isOn = digitalRead(GSM_STATUS_PIN) == HIGH;
-  }
-  if (!isOn) {
-    Serial.println("Cannot turn on");
-    return false;
-  }
-
-  int seconds = 10;
-  do {
-    Serial.print(Serial1.readString());
-  } while (Serial1.available() || --seconds > 0);
-
-  Serial.println("ON");
-  return true;
-}
-
-bool turnOff() {
-  Serial.println("Powering Off...");
-  
-  bool isOn = digitalRead(GSM_STATUS_PIN) == HIGH;
-  if (!isOn) {
-    return true;
-  }
-  
-  digitalWrite(GSM_POWER_PIN, LOW);
-  delay(2000);
-  digitalWrite(GSM_POWER_PIN, HIGH);
-  
-  for (int att = 5; att > 0 && isOn; att--) {
-    delay(1000);
-    isOn = digitalRead(GSM_STATUS_PIN) == HIGH;
-  }
-  if (isOn) {
-    Serial.println("Cannot turn off");
-    return false;
-  }
-
-  do {
-    Serial.print(Serial1.readString());
-  } while (Serial1.available());
-  
-  Serial.println("OFF");
-  return true;
-}
-
-bool readReply(String& reply) {
-  reply = Serial1.readStringUntil('\n');
-  if (reply.compareTo("\r") != 0) {
-    Serial.print("Unexpected return (expected \\r): ");
-    Serial.println(reply);
-    return false;
-  }
-  
-  reply = Serial1.readStringUntil('\n');
-  if (reply.length() == 0) {
-    Serial.print("No reply");
-    return false;
-  }
-  
-  reply.trim();
-  return true;
-}
-
-
-bool readOk() {
-  String reply;
-  if (!readReply(reply)) {
-    return false;
-  }
-  return reply.compareTo("OK") == 0;
-}
-
-
-bool queryCmd(const char* toSend, String& reply) {
-  Serial1.println(toSend);
-  String line; 
-  if (!readReply(line)) {
-    return false;
-  }
-  int dataBegin = line.indexOf(':');
-  if (dataBegin < 0) {
-    Serial.print("Error (query resp): ");
-    Serial.println(reply);
-    return false;
-  }
-  
-  reply = line.substring(dataBegin + 1);
-  reply.trim();
-  
-  line = line.substring(0, dataBegin);
-  String cmdPart(toSend + 2);
-  if (!cmdPart.startsWith(line)) {
-    Serial.print("Not a valid reply: ");
-    Serial.println(line);
-    return false;
-  }
-
-  return readOk();
-}
-
-bool setCmd(const char* toSend) {
-  Serial1.println(toSend);
-  return readOk();
-}
-
-bool sendSms1(const char* number) {  
-  Serial1.print("AT+CMGS=\"");
-  Serial1.print(number);
-  Serial1.println("\"");
-
-  String line; 
-  if (!readReply(line)) {
-    return false;
-  }
-  if (line.compareTo(">") != 0) {
-    Serial.print("No prompt: ");
-    Serial.println(line);
-  }
-
-  return true;
-}
-
-bool waitForData(int secondsToWait) {
-  while(!Serial1.available() && --secondsToWait > 0) {
-    delay(1000);
-  }
-  return secondsToWait > 0;
-}
-
-bool sendSms2() {
-  Serial1.write(26);
-  Serial1.flush();
-  
-  if (!waitForData(15)) {
-    return false;
-  }
-  
-  String reply; 
-  if (!readReply(reply)) {
-    return false;
-  }
-  if (!reply.startsWith("+CMGS")) {
-    Serial.print("Unexpected reply (sms): ");
-    Serial.println(reply);
-    return false;
-  }  
-  
-  return readOk();
-}
-
-bool waitForRegistration(int secondsToWait) {
-  String reply;
-  for (int att = secondsToWait; att > 0; att--) {
-    if (!queryCmd("AT+CGREG?", reply)) {
-      return false;
-    }
-    
-    if (reply.compareTo("0,1") == 0) {
-      Serial.println("On Network");
-      return true;
-    }
-    
-    Serial.print("Waiting for network: ");
-    Serial.println(reply);
-    delay(1000);
-  }
-  return false;
-}
 
 unsigned long solarVoltageSum;
 unsigned long solarVoltageCount;
@@ -227,16 +46,16 @@ bool sendInfo() {
   if (!waitForRegistration(30)) {
     return false;
   }
-  
+
   String info;
   if (!queryCmd("AT+CBC", info)) {
     return false;
   }
-  
+
   float voltageVin = analogRead(VIN_VOLTAGE_PIN) * VOLTAGE_REF_COEF;
   float voltageBattery = analogRead(BAT_VOLTAGE_PIN) * VOLTAGE_REF_COEF;
   float voltageSolar = getSolarVoltageAvg();
-  
+
   if (!sendSms1(GATEWAY)) {
     return false;
   }
@@ -250,7 +69,7 @@ bool sendInfo() {
   if (!sendSms2()) {
     return false;
   }
-  
+
   return true;
 }
 
@@ -258,7 +77,7 @@ void procesInput() {
   if (!Serial.available()) {
     return;
   }
-  
+
   String cmd = Serial.readStringUntil('\n');
   if (cmd.startsWith("AT")) {
     Serial1.println(cmd);
@@ -268,12 +87,12 @@ void procesInput() {
       if (cmd.length() == 0){
         break;
       }
-      Serial.println(cmd);    
+      Serial.println(cmd);
     }
   } else if (cmd.compareTo("test") == 0) {
     turnOn();
     if (!sendInfo()) {
-      Serial.println("sendInfo failed");    
+      Serial.println("sendInfo failed");
     }
     turnOff();
   } else if (cmd.compareTo("on") == 0) {
@@ -294,7 +113,7 @@ void procesInput() {
     while(true) {
       if (Serial1.available()) {
         cmd = Serial1.readString();
-        Serial.print(cmd);    
+        Serial.print(cmd);
       }
       if (Serial.available()) {
         cmd = Serial.readString();
@@ -306,18 +125,16 @@ void procesInput() {
 
 void setup()
 {
+  setupGsm();
+
   pinMode(LED_BUILTIN, OUTPUT);
-  pinMode(GSM_STATUS_PIN, INPUT);
-  pinMode(GSM_POWER_PIN, OUTPUT);
   pinMode(BAT_VOLTAGE_PIN, INPUT);
   pinMode(SOLAR_VOLTAGE_PIN, INPUT);
   pinMode(VIN_VOLTAGE_PIN, INPUT);
-  
-  digitalWrite(GSM_POWER_PIN, HIGH);
 
-  pinMode(SOLAR_POWER_ENABLED_PIN, OUTPUT);  
+  pinMode(SOLAR_POWER_ENABLED_PIN, OUTPUT);
   digitalWrite(SOLAR_POWER_ENABLED_PIN, HIGH);
-  
+
   Serial.begin(9600);
   Serial1.begin(9600);
 
@@ -330,17 +147,17 @@ void loop()
   readSolarVoltage();
 
   digitalWrite(LED_BUILTIN, HIGH);
-  delay(200);  
+  delay(200);
   digitalWrite(LED_BUILTIN, LOW);
   delay(800);
 
   if (++infoSeconds >= INFO_PERIOD) {
     infoSeconds = 0;
-    
+
     turnOn();
     sendInfo();
     turnOff();
 
     resetSolarVoltage();
-  }  
+  }
 }
