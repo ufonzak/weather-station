@@ -1,5 +1,9 @@
 #define ANEMO_PIN (14)
 #define DIRECTION_PIN (A3)
+
+#define RAIN_PIN (16)
+#define RAIN_BUCKET_COEF (0.2794)
+volatile unsigned int rainCount = 0;   
 // #define DEBUG
 
 #define ANEMO_SAMPLES_COUNT (60)
@@ -11,6 +15,7 @@ volatile unsigned int anemoCount = 0;
 unsigned long lastAnemoMeasurement;
 
 void anemoAddCount();
+void rainAddCount();
 
 #define WIND_DIR_MAX_VOLTAGE_DEVIATION (10)
 #define DIRECTION_COUNT (8)
@@ -23,7 +28,9 @@ void setupWeather() {
   pinMode(DIRECTION_PIN, INPUT);  
 
   lastAnemoMeasurement = millis();
-  PCintPort::attachInterrupt(ANEMO_PIN, anemoAddCount, RISING); // attach a PinChange Interrupt to our pin on the rising edge
+  PCintPort::attachInterrupt(ANEMO_PIN, anemoAddCount, RISING);
+  
+  PCintPort::attachInterrupt(RAIN_PIN, rainAddCount, RISING);
 
   for (int i = 0; i < DIRECTION_DISTRIBUTION_SAMPLES; i++) {
     for (int d = 0; d < DIRECTION_COUNT; d++) {
@@ -68,24 +75,23 @@ void anemoAddCount()
 
 int readDirection() {
   int voltage = analogRead(DIRECTION_PIN);
-  if (abs(voltage - 235) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
+  if (abs(voltage - 235) < WIND_DIR_MAX_VOLTAGE_DEVIATION || abs(voltage - 318) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
     return 0;
-  } else if (abs(voltage - 134) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
+  } else if (abs(voltage - 134) < WIND_DIR_MAX_VOLTAGE_DEVIATION || abs(voltage - 194) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
     return 1;    
-  } else if (abs(voltage - 77) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
+  } else if (abs(voltage - 77) < WIND_DIR_MAX_VOLTAGE_DEVIATION || abs(voltage - 422) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
     return 2;    
-  } else if (abs(voltage - 390) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
+  } else if (abs(voltage - 390) < WIND_DIR_MAX_VOLTAGE_DEVIATION || abs(voltage - 777) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
     return 3;    
-  } else if(abs(voltage - 734) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
+  } else if(abs(voltage - 734) < WIND_DIR_MAX_VOLTAGE_DEVIATION || abs(voltage - 897) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
     return 4;    
-  } else if (abs(voltage - 838) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
+  } else if (abs(voltage - 838) < WIND_DIR_MAX_VOLTAGE_DEVIATION || abs(voltage - 957) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
     return 5;    
-  } else if (abs(voltage - 930) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
+  } else if (abs(voltage - 930) < WIND_DIR_MAX_VOLTAGE_DEVIATION || abs(voltage - 940) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
     return 6;    
-  } else if (abs(voltage - 560) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
+  } else if (abs(voltage - 560) < WIND_DIR_MAX_VOLTAGE_DEVIATION || abs(voltage - 615) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
     return 7;    
   }
-  // TODO: add between (parallel resistors)
   return -1;
 }
 
@@ -185,5 +191,30 @@ void printDirection(bool debug, int samplesBack) {
       Serial1.print(",");
       Serial1.print(dist[d]);
     }    
+  }
+}
+
+void rainAddCount() {
+  ++rainCount;
+}
+
+void printPrecipitation(bool debug, bool clearValue) {
+  unsigned int count;
+  if (clearValue) {
+    count = rainCount;
+    rainCount = 0;
+  } else {
+    count = rainCount;
+  }
+
+  float precipitation = count * RAIN_BUCKET_COEF;
+  if (debug) {
+    Serial.print("Precipitation ");
+    Serial.print(count);
+    Serial.print(" ");
+    Serial.println(precipitation);
+  } else {
+    Serial1.print(",");
+    Serial1.print(precipitation);
   }
 }

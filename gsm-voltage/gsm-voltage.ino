@@ -9,8 +9,8 @@
 #define VOLTAGE_REF_COEF (0.006472)
 #define VOLTAGE_SOLAR_COEF (0.01030)
 
-#define GATEWAY "7785225231"
-// #define GATEWAY "2267814018"
+// #define GATEWAY "7785225231"
+#define GATEWAY "2267814018"
 
 #define SOLAR_POWER_ENABLED_PIN (6)
 
@@ -67,6 +67,8 @@ bool sendInfo() {
   if (!sendSms1(GATEWAY)) {
     return false;
   }
+  Serial1.print(cycleStartSecond / 3600);
+  Serial1.print(",");
   Serial1.print(info);
   Serial1.print(",");
   Serial1.print(voltageVin);
@@ -79,6 +81,7 @@ bool sendInfo() {
   printAnemo(false, 10);
   printDirection(false, DIRECTION_DISTRIBUTION_SAMPLES);
   printDirection(false, 2);
+  printPrecipitation(false, true);
   
   if (!sendSms2()) {
     return false;
@@ -140,6 +143,8 @@ void procesInput() {
   } else if (cmd.compareTo("direction") == 0) {
     printDirection(true, DIRECTION_DISTRIBUTION_SAMPLES);
     printDirection(true, 2);
+  } else if (cmd.compareTo("rain") == 0) {
+    printPrecipitation(true, false);
   }
 }
 
@@ -181,7 +186,7 @@ void loop()
     resetSolarVoltage();
   }
 
-  if (cycleStartSecond % 600 == 599) {    // TODO: remove
+  /*if (cycleStartSecond % 600 == 599) {    // TODO: remove
     turnOn();
     sendInfo();
     turnOff();
@@ -191,7 +196,7 @@ void loop()
     
     printDirection(true, DIRECTION_DISTRIBUTION_SAMPLES);
     printDirection(true, 2);
-  }
+  }*/
 
   int leftOfSecond = 1000 - (int)(millis() - cycleStart);
 
