@@ -64,7 +64,8 @@ bool readReply(String& reply) {
   reply = Serial1.readStringUntil('\n');
   if (reply.compareTo("\r") != 0) {
     Serial.print("Unexpected return (expected \\r): ");
-    Serial.println(reply);
+    Serial.print(reply);
+    Serial.println("\"");
     return false;
   }
 
@@ -97,7 +98,8 @@ bool queryCmd(const char* toSend, String& reply) {
   int dataBegin = line.indexOf(':');
   if (dataBegin < 0) {
     Serial.print("Error (query resp): ");
-    Serial.println(reply);
+    Serial.print(reply);
+    Serial.println("\"");
     return false;
   }
 
@@ -108,7 +110,8 @@ bool queryCmd(const char* toSend, String& reply) {
   String cmdPart(toSend + 2);
   if (!cmdPart.startsWith(line)) {
     Serial.print("Not a valid reply: ");
-    Serial.println(line);
+    Serial.print(line);
+    Serial.println("\"");
     return false;
   }
 
@@ -131,7 +134,9 @@ bool sendSms1(const char* number) {
   }
   if (line.compareTo(">") != 0) {
     Serial.print("No prompt: ");
-    Serial.println(line);
+    Serial.print(line);
+    Serial.println("\"");
+    return false;
   }
 
   return true;
@@ -158,7 +163,8 @@ bool sendSms2() {
   }
   if (!reply.startsWith("+CMGS")) {
     Serial.print("Unexpected reply (sms): ");
-    Serial.println(reply);
+    Serial.print(reply);
+    Serial.println("\"");
     return false;
   }
 

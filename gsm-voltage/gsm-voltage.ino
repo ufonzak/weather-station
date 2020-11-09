@@ -1,19 +1,27 @@
+#define NO_PORTC_PINCHANGES
+#define NO_PORTD_PINCHANGES
+
+#include <PinChangeInt.h>
+
 #define VIN_VOLTAGE_PIN (A0)
 #define BAT_VOLTAGE_PIN (A1)
 #define SOLAR_VOLTAGE_PIN (A2)
 #define VOLTAGE_REF_COEF (0.006472)
 #define VOLTAGE_SOLAR_COEF (0.01030)
 
-// #define GATEWAY "7785225231"
-#define GATEWAY "2267814018"
+#define GATEWAY "7785225231"
+// #define GATEWAY "2267814018"
 
 #define SOLAR_POWER_ENABLED_PIN (6)
 
-#define INFO_PERIOD (3600)
+#define BREATHE_LED (200)
 
 #include "gsm.h"
 
-int infoSeconds = 0;
+unsigned long cycleStart;
+unsigned long cycleStartSecond;
+
+#include "weather.h"
 
 unsigned long solarVoltageSum;
 unsigned long solarVoltageCount;
@@ -66,6 +74,12 @@ bool sendInfo() {
   Serial1.print(voltageBattery);
   Serial1.print(",");
   Serial1.print(voltageSolar);
+
+  printAnemo(false, ANEMO_SAMPLES_COUNT);
+  printAnemo(false, 10);
+  printDirection(false, DIRECTION_DISTRIBUTION_SAMPLES);
+  printDirection(false, 2);
+  
   if (!sendSms2()) {
     return false;
   }
@@ -120,12 +134,19 @@ void procesInput() {
         Serial1.print(cmd);
       }
     }
+  } else if (cmd.compareTo("anemo") == 0) {
+    printAnemo(true, ANEMO_SAMPLES_COUNT);
+    printAnemo(true, 10);
+  } else if (cmd.compareTo("direction") == 0) {
+    printDirection(true, DIRECTION_DISTRIBUTION_SAMPLES);
+    printDirection(true, 2);
   }
 }
 
 void setup()
 {
   setupGsm();
+  setupWeather();
 
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(BAT_VOLTAGE_PIN, INPUT);
@@ -138,26 +159,50 @@ void setup()
   Serial.begin(9600);
   Serial1.begin(9600);
 
-  infoSeconds = INFO_PERIOD - 120;
+  delay(2000);
 }
 
 void loop()
 {
+  cycleStart = millis();
+  cycleStartSecond = cycleStart / 1000;
+  unsigned int secondOfHour = cycleStartSecond % 3600;
+  
   procesInput();
   readSolarVoltage();
+  measureDirection();
+  measureAnemo();
 
-  digitalWrite(LED_BUILTIN, HIGH);
-  delay(200);
-  digitalWrite(LED_BUILTIN, LOW);
-  delay(800);
-
-  if (++infoSeconds >= INFO_PERIOD) {
-    infoSeconds = 0;
-
+  if (secondOfHour == 3599 || cycleStartSecond == 120) {
     turnOn();
     sendInfo();
     turnOff();
 
     resetSolarVoltage();
+  }
+
+  if (cycleStartSecond % 600 == 599) {    // TODO: remove
+    turnOn();
+    sendInfo();
+    turnOff();
+    
+    printAnemo(true, ANEMO_SAMPLES_COUNT);
+    printAnemo(true, 10);
+    
+    printDirection(true, DIRECTION_DISTRIBUTION_SAMPLES);
+    printDirection(true, 2);
+  }
+
+  int leftOfSecond = 1000 - (int)(millis() - cycleStart);
+
+  if (cycleStartSecond % 10 == 0 && leftOfSecond > BREATHE_LED) {   
+    digitalWrite(LED_BUILTIN, HIGH);
+    delay(BREATHE_LED);
+    digitalWrite(LED_BUILTIN, LOW);
+    leftOfSecond -= BREATHE_LED;
+  }
+
+  if (leftOfSecond > 0) {
+    delay(leftOfSecond); 
   }
 }
