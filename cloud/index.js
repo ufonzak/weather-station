@@ -146,6 +146,30 @@ function processRecord(record) {
     'Time': ts.toString()
   });
 
+  records.push({
+    'Dimensions': dimensions,
+    'MeasureName': 'temperature',
+    'MeasureValue': `${data[30]}`,
+    'MeasureValueType': 'DOUBLE',
+    'Time': ts.toString()
+  });
+
+  records.push({
+    'Dimensions': dimensions,
+    'MeasureName': 'pressure',
+    'MeasureValue': `${data[31]}`,
+    'MeasureValueType': 'DOUBLE',
+    'Time': ts.toString()
+  });
+
+  records.push({
+    'Dimensions': dimensions,
+    'MeasureName': 'humidity',
+    'MeasureValue': `${data[32]}`,
+    'MeasureValueType': 'DOUBLE',
+    'Time': ts.toString()
+  });
+
   return records;
 }
 

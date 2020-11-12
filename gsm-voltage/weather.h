@@ -23,7 +23,11 @@ void rainAddCount();
 unsigned int lastDirectionIndex = -1;
 byte directionDistribution[DIRECTION_DISTRIBUTION_SAMPLES][DIRECTION_COUNT];
 
+Adafruit_BME280 bme;
+
 void setupWeather() {
+  bme.begin(0x76);
+
   pinMode(ANEMO_PIN, INPUT);     
   pinMode(DIRECTION_PIN, INPUT);  
 
@@ -216,5 +220,27 @@ void printPrecipitation(bool debug, bool clearValue) {
   } else {
     Serial1.print(",");
     Serial1.print(precipitation);
+  }
+}
+
+void printBmeData(bool debug) {
+  float temperature = bme.readTemperature();
+  float pressure = bme.readPressure() / 100.0F;
+  int humidity = bme.readHumidity();
+  
+  if (debug) {
+    Serial.print("BME280 ");
+    Serial.print(temperature);
+    Serial.print(" ");
+    Serial.print(pressure);
+    Serial.print(" ");
+    Serial.println(humidity);
+  } else {
+    Serial1.print(",");
+    Serial1.print(temperature);
+    Serial1.print(",");
+    Serial1.print(pressure);
+    Serial1.print(",");
+    Serial1.print(humidity);
   }
 }

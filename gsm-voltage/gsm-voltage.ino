@@ -2,6 +2,9 @@
 #define NO_PORTD_PINCHANGES
 
 #include <PinChangeInt.h>
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BME280.h>
 
 #define VIN_VOLTAGE_PIN (A0)
 #define BAT_VOLTAGE_PIN (A1)
@@ -82,6 +85,7 @@ bool sendInfo() {
   printDirection(false, DIRECTION_DISTRIBUTION_SAMPLES);
   printDirection(false, 2);
   printPrecipitation(false, true);
+  printBmeData(false);
   
   if (!sendSms2()) {
     return false;
@@ -145,6 +149,8 @@ void procesInput() {
     printDirection(true, 2);
   } else if (cmd.compareTo("rain") == 0) {
     printPrecipitation(true, false);
+  } else if (cmd.compareTo("bme") == 0) {
+    printBmeData(true);
   }
 }
 
