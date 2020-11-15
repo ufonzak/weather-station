@@ -179,7 +179,9 @@ void printDirection(bool debug, int samplesBack) {
     total += dist[d];
   }
   for (int d = 0; d < DIRECTION_COUNT; d++) {
-    dist[d] = 100 * dist[d] / total;
+    if (total > 0) {
+      dist[d] = 100 * dist[d] / total;
+    }
   }
   
   if (debug) {

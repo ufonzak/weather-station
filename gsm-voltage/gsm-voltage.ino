@@ -9,10 +9,11 @@
 #define VIN_VOLTAGE_PIN (A0)
 #define BAT_VOLTAGE_PIN (A1)
 #define SOLAR_VOLTAGE_PIN (A2)
+#define BATTERY_TEMP_PIN (A4)
 #define VOLTAGE_REF_COEF (0.006472)
 #define VOLTAGE_SOLAR_COEF (0.01030)
 
-// #define GATEWAY "7785225231"
+// #define GATEWAY "7786812711"
 #define GATEWAY "2267814018"
 
 #define SOLAR_POWER_ENABLED_PIN (6)
@@ -53,6 +54,44 @@ void resetSolarVoltage() {
   solarVoltageCount = 0;
 }
 
+#define THERMISTOR_RESISTOR2 (10000)
+#define THERMISTOR_R (10000)
+#define THERMISTOR_NOMINAL_TEMP (25.f)
+#define THERMISTOR_BCOEFFICIENT (3950.f)
+#define ABSOLUTE_ZERO_TEMP (-273.15f)
+
+float maxBatteryTemperature = ABSOLUTE_ZERO_TEMP;
+
+float readBatteryTemperature() {
+  int reading = analogRead(BATTERY_TEMP_PIN);
+  
+  float resistance = 1023.f / reading - 1.f;
+  resistance = THERMISTOR_RESISTOR2 * resistance;
+  
+  float steinhart;
+  steinhart = resistance / THERMISTOR_R;     // (R/Ro)
+  steinhart = log(steinhart);                // ln(R/Ro)
+  steinhart /= THERMISTOR_BCOEFFICIENT;                   // 1/B * ln(R/Ro)
+  steinhart += 1.0 / (THERMISTOR_NOMINAL_TEMP + 273.15);  // + (1/To)
+  steinhart = 1.0 / steinhart;              
+  steinhart += ABSOLUTE_ZERO_TEMP;             // convert absolute temp to C
+  
+  return steinhart;
+}
+
+void measureBatteryTemperature() {
+  if (cycleStartSecond % 60 != 0) {
+    return;
+  }
+  float temp = readBatteryTemperature();
+  if (temp > maxBatteryTemperature) {
+    maxBatteryTemperature = temp;
+  }
+}
+void resetBatteryTemperature() {
+  maxBatteryTemperature = ABSOLUTE_ZERO_TEMP;
+}
+
 bool sendInfo() {
   if (!waitForRegistration(30)) {
     return false;
@@ -62,6 +101,7 @@ bool sendInfo() {
   if (!queryCmd("AT+CBC", info)) {
     return false;
   }
+  info = info.substring(2);
 
   float voltageVin = analogRead(VIN_VOLTAGE_PIN) * VOLTAGE_REF_COEF;
   float voltageBattery = analogRead(BAT_VOLTAGE_PIN) * VOLTAGE_REF_COEF;
@@ -73,6 +113,8 @@ bool sendInfo() {
   Serial1.print(cycleStartSecond / 3600);
   Serial1.print(",");
   Serial1.print(info);
+  Serial1.print(",");
+  Serial1.print(maxBatteryTemperature);
   Serial1.print(",");
   Serial1.print(voltageVin);
   Serial1.print(",");
@@ -151,6 +193,8 @@ void procesInput() {
     printPrecipitation(true, false);
   } else if (cmd.compareTo("bme") == 0) {
     printBmeData(true);
+  } else if (cmd.compareTo("battery_t") == 0) {
+    Serial.println(readBatteryTemperature());
   }
 }
 
@@ -163,6 +207,7 @@ void setup()
   pinMode(BAT_VOLTAGE_PIN, INPUT);
   pinMode(SOLAR_VOLTAGE_PIN, INPUT);
   pinMode(VIN_VOLTAGE_PIN, INPUT);
+  pinMode(BATTERY_TEMP_PIN, INPUT);
 
   pinMode(SOLAR_POWER_ENABLED_PIN, OUTPUT);
   digitalWrite(SOLAR_POWER_ENABLED_PIN, HIGH);
@@ -183,6 +228,7 @@ void loop()
   readSolarVoltage();
   measureDirection();
   measureAnemo();
+  measureBatteryTemperature();
 
   if (secondOfHour == 3599 || cycleStartSecond == 120) {
     turnOn();
@@ -190,19 +236,8 @@ void loop()
     turnOff();
 
     resetSolarVoltage();
+    resetBatteryTemperature();
   }
-
-  /*if (cycleStartSecond % 600 == 599) {    // TODO: remove
-    turnOn();
-    sendInfo();
-    turnOff();
-    
-    printAnemo(true, ANEMO_SAMPLES_COUNT);
-    printAnemo(true, 10);
-    
-    printDirection(true, DIRECTION_DISTRIBUTION_SAMPLES);
-    printDirection(true, 2);
-  }*/
 
   int leftOfSecond = 1000 - (int)(millis() - cycleStart);
 
