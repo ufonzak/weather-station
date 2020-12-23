@@ -20,6 +20,8 @@
 
 #define BREATHE_LED (200)
 
+// TODO: watchdog
+
 #include "gsm.h"
 
 unsigned long cycleStart;
@@ -230,7 +232,8 @@ void loop()
   measureAnemo();
   measureBatteryTemperature();
 
-  if (secondOfHour == 3599 || cycleStartSecond == 120) {
+  bool sendBoost = secondOfHour == 1799 && getSolarVoltageAvg() >= 6.0f;
+  if (secondOfHour == 3599 || sendBoost || cycleStartSecond == 120) {
     turnOn();
     sendInfo();
     turnOff();

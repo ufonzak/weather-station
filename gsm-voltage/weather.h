@@ -6,13 +6,23 @@
 volatile unsigned int rainCount = 0;   
 // #define DEBUG
 
+typedef struct {
+  byte avg;
+  byte gust;
+} AnemoSample;
+
 #define ANEMO_SAMPLES_COUNT (60)
-byte anemoSamples[ANEMO_SAMPLES_COUNT];
+AnemoSample anemoSamples[ANEMO_SAMPLES_COUNT];
 unsigned int anemoSamplesIndex = -1;
 
 #define ANEMO_MEASURING_PERIOD (60000)
 volatile unsigned int anemoCount = 0;   
 unsigned long lastAnemoMeasurement;
+
+#define ANEMO_GUST_MEASURING_PERIOD (5000) // must divide ANEMO_MEASURING_PERIOD without remainder
+unsigned int anemoLastGustCount;
+unsigned long lastAnemoGustMeasurement;
+byte anemoMaxGust;   
 
 void anemoAddCount();
 void rainAddCount();
@@ -25,6 +35,8 @@ byte directionDistribution[DIRECTION_DISTRIBUTION_SAMPLES][DIRECTION_COUNT];
 
 Adafruit_BME280 bme;
 
+void resetAnemoGust();
+
 void setupWeather() {
   bme.begin(0x76);
 
@@ -32,6 +44,8 @@ void setupWeather() {
   pinMode(DIRECTION_PIN, INPUT);  
 
   lastAnemoMeasurement = millis();
+  lastAnemoGustMeasurement = lastAnemoMeasurement;
+  resetAnemoGust();
   PCintPort::attachInterrupt(ANEMO_PIN, anemoAddCount, RISING);
   
   PCintPort::attachInterrupt(RAIN_PIN, rainAddCount, RISING);
@@ -43,28 +57,56 @@ void setupWeather() {
   }
 }
 
-
-void measureAnemo() {
-  unsigned long now = millis();
-  long measuringPeriod = now - lastAnemoMeasurement;
-
-  if (measuringPeriod < ANEMO_MEASURING_PERIOD) {
+void measureAnemoGust(unsigned long now) {
+  long measuringPeriod = now - lastAnemoGustMeasurement;  
+  if (measuringPeriod < ANEMO_GUST_MEASURING_PERIOD) {
     return;
   }
 
+  lastAnemoGustMeasurement = now;
+  unsigned int count = anemoCount;
+  unsigned int gustCount = count - anemoLastGustCount;
+  anemoLastGustCount = count;
+
+  byte gustSpeed = (byte)(2.41f * ((float)gustCount / ((float)measuringPeriod / 1000.f)));
+  
+  if (gustSpeed > anemoMaxGust) {
+    anemoMaxGust = gustSpeed;
+  }
+}
+
+void resetAnemoGust() {
+  anemoLastGustCount = 0; 
+  anemoMaxGust = 0;
+}
+
+void measureAnemo() {
+  unsigned long now = millis();
+  measureAnemoGust(now);
+  
+  long measuringPeriod = now - lastAnemoMeasurement;
+  if (measuringPeriod < ANEMO_MEASURING_PERIOD) {
+    return;
+  }
+  
   unsigned int count = anemoCount;
   anemoCount = 0;
   lastAnemoMeasurement = now;
 
   byte speedAvg = (byte)(2.41f * ((float)count / ((float)measuringPeriod / 1000.f)));
   
+  byte maxGust = anemoMaxGust;
+  resetAnemoGust();
+  
   if (anemoSamplesIndex < 0) {
     for (int i = 0; i < ANEMO_SAMPLES_COUNT; i++) {
-      anemoSamples[i] = speedAvg;
+      anemoSamples[i].avg = speedAvg;
+      anemoSamples[i].gust = maxGust;
     }
   }
   anemoSamplesIndex = (anemoSamplesIndex + 1) % ANEMO_SAMPLES_COUNT;
-  anemoSamples[anemoSamplesIndex] = speedAvg;
+  anemoSamples[anemoSamplesIndex].avg = speedAvg;
+  anemoSamples[anemoSamplesIndex].gust = maxGust;
 
 #ifdef DEBUG
   Serial.print("Anemo ");
@@ -129,20 +171,20 @@ void measureDirection()  {
 
 void printAnemo(bool debug, int samplesBack) {
   unsigned int averageSpeed = 0;
-  byte maxSpeed = 0;
+  byte maxGust = 0;
   for (int i = 0; i < samplesBack; i++) {
     int index = (anemoSamplesIndex + ANEMO_SAMPLES_COUNT - i) % ANEMO_SAMPLES_COUNT;
-    if (anemoSamples[index] > maxSpeed) {
-      maxSpeed = anemoSamples[index];
+    if (anemoSamples[index].gust > maxGust) {
+      maxGust = anemoSamples[index].gust;
     }
-    averageSpeed += anemoSamples[index];
+    averageSpeed += anemoSamples[index].avg;
   }
   averageSpeed /= samplesBack;
 
   unsigned long  stdDevSum = 0;
   for (int i = 0; i < samplesBack; i++) {
     int index = (anemoSamplesIndex + ANEMO_SAMPLES_COUNT - i) % ANEMO_SAMPLES_COUNT;
-    stdDevSum += (anemoSamples[index] - averageSpeed) * (anemoSamples[index] - averageSpeed);
+    stdDevSum += (anemoSamples[index].avg - averageSpeed) * (anemoSamples[index].avg - averageSpeed);
   }
   float stdDevSpeed = sqrt(stdDevSum / (samplesBack - 1.f));
 
@@ -154,7 +196,7 @@ void printAnemo(bool debug, int samplesBack) {
     Serial.print(" ");
     Serial.print(stdDevSpeed);
     Serial.print(" ");
-    Serial.print(maxSpeed);
+    Serial.print(maxGust);
     Serial.println();
   } else {
     Serial1.print(",");
@@ -162,7 +204,7 @@ void printAnemo(bool debug, int samplesBack) {
     Serial1.print(",");
     Serial1.print(stdDevSpeed);
     Serial1.print(",");
-    Serial1.print(maxSpeed);
+    Serial1.print(maxGust);
   }
 }
 
