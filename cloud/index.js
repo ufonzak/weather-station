@@ -172,7 +172,8 @@ function processRecord(record) {
     'Time': ts.toString()
   });
 
-  return records;
+  const validRecords = records.filter(record => Number.isFinite(+record.MeasureValue));
+  return validRecords;
 }
 
 exports.handler = async (event) => {

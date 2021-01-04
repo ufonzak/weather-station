@@ -36,9 +36,10 @@ byte directionDistribution[DIRECTION_DISTRIBUTION_SAMPLES][DIRECTION_COUNT];
 Adafruit_BME280 bme;
 
 void resetAnemoGust();
+void setupBme();
 
 void setupWeather() {
-  bme.begin(0x76);
+  setupBme();
 
   pinMode(ANEMO_PIN, INPUT);     
   pinMode(DIRECTION_PIN, INPUT);  
@@ -267,8 +268,19 @@ void printPrecipitation(bool debug, bool clearValue) {
   }
 }
 
+void setupBme() {
+  bme.begin(0x76);
+}
+
 void printBmeData(bool debug) {
   float temperature = bme.readTemperature();
+  bool isBroken = temperature != temperature || temperature < -140.0f;
+  if (isBroken) {
+    Serial.println("Restarting BME280");
+    setupBme();
+    temperature = bme.readTemperature();
+  }
+  
   float pressure = bme.readPressure() / 100.0F;
   int humidity = bme.readHumidity();
   

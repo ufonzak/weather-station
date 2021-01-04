@@ -195,6 +195,8 @@ void procesInput() {
     printPrecipitation(true, false);
   } else if (cmd.compareTo("bme") == 0) {
     printBmeData(true);
+  } else if (cmd.compareTo("resetbme") == 0) {
+    setupBme();
   } else if (cmd.compareTo("battery_t") == 0) {
     Serial.println(readBatteryTemperature());
   }
