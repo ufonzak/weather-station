@@ -5,26 +5,35 @@ import { client } from './client';
 export declare namespace Query {
   export type Row = Record<string, TimestreamQuery.Datum>;
   export type Rows = Query.Row[];
+  export interface Context {
+    loading: boolean;
+    data?: Query.Rows;
+    refresh: () => void;
+  }
 }
 
+
 interface Props {
+  refreshKey?: string | number;
   query?: string;
-  onData?: (data: Query.Rows, refresh?: () => void) => React.ReactNode;
-  onLoading?: () => React.ReactNode;
+  children: (ctx?: Query.Context) => React.ReactElement;
 }
 
 interface State {
-  phase: 'loading' | 'data' | 'error' | 'dormant';
   rows: Query.Rows;
   error: string;
+  loading: boolean;
 }
 
 const defaultState: State = {
-  phase: 'dormant', error: null, rows: null,
+  error: null,
+  rows: null,
+  loading: false,
 };
 
 export class Query extends React.Component<Props, State> {
   private currentQuery: Promise<TimestreamQuery.Types.QueryResponse> = null;
+  private loadedRows: Query.Rows = null;
 
   constructor(props: Props) {
     super(props);
@@ -42,8 +51,8 @@ export class Query extends React.Component<Props, State> {
   }
 
   componentDidUpdate(prevProps: Props) {
-    const { query } = this.props;
-    if (query !== prevProps.query) {
+    const { query, refreshKey } = this.props;
+    if (query !== prevProps.query || refreshKey !== prevProps.refreshKey) {
       this.makeQuery(query);
     }
   }
@@ -76,11 +85,14 @@ export class Query extends React.Component<Props, State> {
       this.onQueryError(err);
     });
 
-    this.setState({ error: null, phase: 'loading' });
+    if (!nextToken) {
+      this.loadedRows = [];
+      this.setState({ error: null, loading: true });
+    }
   }
 
   private onQueryError(err: Error) {
-    this.setState({ phase: 'error', error: err.message || String(err) });
+    this.setState({ error: err.message || String(err) || 'Unknown Error', loading: false });
   };
 
   private onQueryResult(query: string, response: TimestreamQuery.Types.QueryResponse) {
@@ -95,10 +107,15 @@ export class Query extends React.Component<Props, State> {
       return record;
     });
 
-    this.setState(prevState => ({
-      rows: prevState.rows ? prevState.rows.concat(rows) : rows,
-      phase: response.NextToken ? 'loading' : 'data',
-    }))
+    this.loadedRows = this.loadedRows.concat(rows);
+
+    if (!response.NextToken) {
+      this.setState({
+        rows: this.loadedRows,
+        loading: false,
+      });
+      this.loadedRows = null;
+    }
   };
 
   private onRefresh = () => {
@@ -107,12 +124,11 @@ export class Query extends React.Component<Props, State> {
   };
 
   render() {
-    const { onData, onLoading } = this.props;
-    const { phase, error, rows } = this.state;
+    const { children } = this.props;
+    const { error, rows, loading } = this.state;
     return <>
-      {phase === 'loading' && !!onLoading && onLoading()}
-      {phase === 'data' && !!onData && onData(rows, this.onRefresh)}
-      {phase === 'error' && <div>This is broken. Error: {error}</div>}
+      {!error && children({ loading, data: rows, refresh: this.onRefresh })}
+      {!!error && <div>This is broken. Error: {error}</div>}
     </>;
   }
 }

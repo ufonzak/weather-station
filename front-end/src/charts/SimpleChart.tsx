@@ -1,12 +1,12 @@
 import React from 'react';
-import _ from 'lodash';
 import moment from 'moment';
-import {  AreaChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, YAxis } from 'recharts';
+import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, YAxis } from 'recharts';
 
 import { environment } from '../environment';
 import { Query } from '../query';
 import { Range } from './utils';
 import { timeAxis } from './TimeAxis';
+import { ChartLoader } from './ChartLoader';
 
 interface Point {
   time: number;
@@ -14,36 +14,41 @@ interface Point {
 }
 
 interface Props {
+  refreshKey?: number | string;
   measurement: string;
   range: Range;
+  label?: string;
 }
 
 export class SimpleChart extends React.Component<Props> {
   transformData(data: Query.Rows): Point[] { // TODO: memoize
-    return data.map((record): Point => ({
+    return data?.map((record): Point => ({
       time: moment.utc(record['time'].ScalarValue).valueOf(),
       value: parseFloat(record['value'].ScalarValue),
     }));
   }
 
-  renderData(data: Query.Rows) {
-    const { range, measurement } = this.props;
-    const points = this.transformData(data);
-    return <ResponsiveContainer width={1000} height={500}>
-      <LineChart data={points}>
-        <CartesianGrid strokeDasharray="3 3" />
-        {timeAxis(range)}
-        <YAxis domain={['auto', 'auto']}/>
-        <Legend formatter={() => measurement}/>
-        <Tooltip
-          labelFormatter={(value: number) => moment(value).format('llll')}/>
-        <Line type="linear" dataKey="value" stroke="#8884d8" />
-      </LineChart>
-    </ResponsiveContainer>;
+  renderData(ctx: Query.Context) {
+    const { range, measurement, label } = this.props;
+    const points = this.transformData(ctx.data);
+    return <>
+      {ctx.loading && <ChartLoader/>}
+      <ResponsiveContainer>
+        <LineChart data={points}>
+          <CartesianGrid strokeDasharray="3 3" />
+          {timeAxis(range)}
+          <YAxis domain={['auto', 'auto']} width={40}/>
+          <Legend formatter={() =>  label || measurement}/>
+          <Tooltip
+            labelFormatter={(value: number) => moment(value).format('llll')}/>
+          <Line type="linear" dataKey="value" stroke="#8884d8" dot={null} />
+        </LineChart>
+      </ResponsiveContainer>
+    </>;
   }
 
   render() {
-    const { range, measurement } = this.props;
+    const { range, refreshKey, measurement } = this.props;
 
     const query = `
 SELECT
@@ -56,8 +61,6 @@ AND measure_name = '${measurement}'
 ORDER BY time
       `.trim();
 
-    return <div className="current">
-      <Query query={query} onData={data => this.renderData(data)}/>
-    </div>;
+    return <Query query={query} refreshKey={refreshKey}>{this.renderData.bind(this)}</Query>;
   }
 }

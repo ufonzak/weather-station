@@ -1,6 +1,6 @@
 export const environment = {
-  region: 'us-west-2',
-  accessKeyId: 'AKIAUFHDNWENGJSUDOOQ',
-  secretAccessKey: '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',
-  databaseName: 'weather',
+  region: process.env.REACT_APP_AWS_REGION,
+  accessKeyId: process.env.REACT_APP_AWS_KEY_ID,
+  secretAccessKey: process.env.REACT_APP_AWS_KEY,
+  databaseName: process.env.REACT_APP_DATABASE,
 };

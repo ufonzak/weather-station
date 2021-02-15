@@ -1,17 +1,19 @@
 import React from 'react';
 import './App.scss';
 import { Current } from './current';
-import { WindChart, WindDirectionChart, SimpleChart } from './charts';
+import { Charts } from './charts';
 
-function App() {
+function App(): React.ReactElement {
   return (
-    <div className="App">
+    <div className="app container">
+      <h1>Mt. Woodside</h1>
       <Current/>
-      <WindChart range="1d"/>
-      <WindDirectionChart range="1d"/>
-      <SimpleChart range="1d" measurement="temperature"/>
-      <SimpleChart range="1d" measurement="pressure"/>
-      <SimpleChart range="1d" measurement="humidity"/>
+      <Charts/>
+      <div className="mt-4 mb-3">
+        <strong>
+          Disclaimer: The data are provided without any warranty. Do not rely on the data to assess the risk of flying.
+        </strong>
+      </div>
     </div>
   );
 }

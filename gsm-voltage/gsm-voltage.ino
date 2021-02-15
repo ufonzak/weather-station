@@ -66,18 +66,18 @@ float maxBatteryTemperature = ABSOLUTE_ZERO_TEMP;
 
 float readBatteryTemperature() {
   int reading = analogRead(BATTERY_TEMP_PIN);
-  
+
   float resistance = 1023.f / reading - 1.f;
   resistance = THERMISTOR_RESISTOR2 * resistance;
-  
+
   float steinhart;
   steinhart = resistance / THERMISTOR_R;     // (R/Ro)
   steinhart = log(steinhart);                // ln(R/Ro)
   steinhart /= THERMISTOR_BCOEFFICIENT;                   // 1/B * ln(R/Ro)
   steinhart += 1.0 / (THERMISTOR_NOMINAL_TEMP + 273.15);  // + (1/To)
-  steinhart = 1.0 / steinhart;              
+  steinhart = 1.0 / steinhart;
   steinhart += ABSOLUTE_ZERO_TEMP;             // convert absolute temp to C
-  
+
   return steinhart;
 }
 
@@ -95,7 +95,7 @@ void resetBatteryTemperature() {
 }
 
 bool sendInfo() {
-  if (!waitForRegistration(30)) {
+  if (!waitForRegistration(60)) {
     return false;
   }
 
@@ -130,7 +130,7 @@ bool sendInfo() {
   printDirection(false, 2);
   printPrecipitation(false, true);
   printBmeData(false);
-  
+
   if (!sendSms2()) {
     return false;
   }
@@ -227,7 +227,7 @@ void loop()
   cycleStart = millis();
   cycleStartSecond = cycleStart / 1000;
   unsigned int secondOfHour = cycleStartSecond % 3600;
-  
+
   procesInput();
   readSolarVoltage();
   measureDirection();
@@ -246,7 +246,7 @@ void loop()
 
   int leftOfSecond = 1000 - (int)(millis() - cycleStart);
 
-  if (cycleStartSecond % 10 == 0 && leftOfSecond > BREATHE_LED) {   
+  if (cycleStartSecond % 10 == 0 && leftOfSecond > BREATHE_LED) {
     digitalWrite(LED_BUILTIN, HIGH);
     delay(BREATHE_LED);
     digitalWrite(LED_BUILTIN, LOW);
@@ -254,6 +254,6 @@ void loop()
   }
 
   if (leftOfSecond > 0) {
-    delay(leftOfSecond); 
+    delay(leftOfSecond);
   }
 }

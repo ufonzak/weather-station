@@ -1,0 +1,19 @@
+.wind-chart {
+  .custom-tooltip {
+    background: white;
+    border: 1px solid grey;
+    padding: 0.5rem;
+  }
+}
+
+.charts {
+  .charts-column {
+    height: 20rem;
+  }
+
+  .controls {
+    > .dropdown, > button {
+      margin-left: 1rem;
+    }
+  }
+}

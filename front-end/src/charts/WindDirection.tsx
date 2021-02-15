@@ -8,10 +8,9 @@ import { Query } from '../query';
 import { WindDirection, WIND_DIRECTIONS } from '../utils';
 import { Range } from './utils';
 import { timeAxis } from './TimeAxis';
+import { ChartLoader } from './ChartLoader';
 
-const measures = [
-  ... _.range(8).map(i => `wind_direction${i}_1h`),
-];
+const measures = _.range(8).map(i => `wind_direction${i}_1h`);
 const COLORS = [
   '#F51818',
   '#F50CF5',
@@ -28,6 +27,7 @@ interface Point extends Record<WindDirection, Number> {
 }
 
 interface Props {
+  refreshKey?: number | string;
   range: Range;
 }
 
@@ -50,27 +50,30 @@ export class WindDirectionChart extends React.Component<Props> {
     return points;
   }
 
-  renderData(data: Query.Rows) {
+  renderData(ctx: Query.Context) {
     const { range } = this.props;
-    const points = this.transformData(data);
-    return <ResponsiveContainer width={1000} height={500}>
-      <AreaChart data={points} stackOffset="expand">
-        <CartesianGrid strokeDasharray="3 3" />
-        {timeAxis(range)}
-        <YAxis domain={[0, 1]} tickFormatter={tick => `${tick * 100}%`} tickCount={5}/>
-        <Legend />
-        <Tooltip
-          formatter={(value: number) => `${value}%`}
-          labelFormatter={(value: number) => moment(value).format('llll')}/>
-        {WIND_DIRECTIONS.map((direction, i) =>
-          <Area key={direction} type="linear" stackId="s" dataKey={direction} fill={COLORS[i]} stroke={COLORS[i]} />
-        )}
-      </AreaChart>
-    </ResponsiveContainer>;
+    const points = this.transformData(ctx.data);
+    return <>
+      {ctx.loading && <ChartLoader/>}
+      <ResponsiveContainer>
+        <AreaChart data={points} stackOffset="expand">
+          <CartesianGrid strokeDasharray="3 3" />
+          {timeAxis(range)}
+          <YAxis domain={[0, 1]} tickFormatter={tick => `${tick * 100}%`} tickCount={5} width={40}/>
+          <Legend />
+          <Tooltip
+            formatter={(value: number) => `${value}%`}
+            labelFormatter={(value: number) => moment(value).format('llll')}/>
+          {WIND_DIRECTIONS.map((direction, i) =>
+            <Area key={direction} type="linear" stackId="s" dataKey={direction} fill={COLORS[i]} stroke={COLORS[i]} />
+          )}
+        </AreaChart>
+      </ResponsiveContainer>
+    </>;
   }
 
   render() {
-    const { range } = this.props;
+    const { range, refreshKey } = this.props;
 
     const query = `
 SELECT
@@ -83,8 +86,6 @@ AND measure_name IN (${measures.map(measure => `'${measure}'`).join()})
 ORDER BY time
       `.trim();
 
-    return <div className="current">
-      <Query query={query} onData={data => this.renderData(data)}/>
-    </div>;
+    return <Query query={query} refreshKey={refreshKey}>{this.renderData.bind(this)}</Query>;
   }
 }
