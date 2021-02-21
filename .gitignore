@@ -1,3 +1,7 @@
 node_modules
 *.zip
 grafana*
+
+/pcb/output
+/pcb/pcb.kicad_pcb-bak
+/pcb/pcb.sch-bak
