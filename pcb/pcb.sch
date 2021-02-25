@@ -507,7 +507,7 @@ L Device:R_Small R9
 U 1 1 60390FA3
 P 2600 5600
 F 0 "R9" V 2796 5600 50  0000 C CNN
-F 1 "20k" V 2705 5600 50  0000 C CNN
+F 1 "22k" V 2705 5600 50  0000 C CNN
 F 2 "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal" H 2600 5600 50  0001 C CNN
 F 3 "~" H 2600 5600 50  0001 C CNN
 	1    2600 5600
@@ -714,8 +714,6 @@ Text GLabel 2300 3400 0    50   Input ~ 0
 PROC_PWR
 Text GLabel 8550 1000 0    50   Input ~ 0
 PROC_RESET
-Text Notes 4500 1700 0    50   ~ 0
-TODO: RST
 Text Label 6250 1950 2    50   ~ 0
 RX
 Text Label 6250 1850 2    50   ~ 0
