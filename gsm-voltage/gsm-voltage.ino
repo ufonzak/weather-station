@@ -6,6 +6,8 @@
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
 
+#define DATA_FORMAT_VERSION (1)
+
 #define VIN_VOLTAGE_PIN (A0)
 #define BAT_VOLTAGE_PIN (A1)
 #define SOLAR_VOLTAGE_PIN (A2)
@@ -13,10 +15,11 @@
 #define VOLTAGE_REF_COEF (0.006472)
 #define VOLTAGE_SOLAR_COEF (0.01030)
 
+#define CHARGING_DISABLED_PIN (10)
+#define IS_CHARGING_PIN (11)
+
 // #define GATEWAY "7786812711"
 #define GATEWAY "2267814018"
-
-#define SOLAR_POWER_ENABLED_PIN (6)
 
 #define BREATHE_LED (200)
 
@@ -74,7 +77,7 @@ float readBatteryTemperature() {
   steinhart = resistance / THERMISTOR_R;     // (R/Ro)
   steinhart = log(steinhart);                // ln(R/Ro)
   steinhart /= THERMISTOR_BCOEFFICIENT;                   // 1/B * ln(R/Ro)
-  steinhart += 1.0 / (THERMISTOR_NOMINAL_TEMP + 273.15);  // + (1/To)
+  steinhart += 1.0 / (THERMISTOR_NOMINAL_TEMP - ABSOLUTE_ZERO_TEMP);  // + (1/To)
   steinhart = 1.0 / steinhart;
   steinhart += ABSOLUTE_ZERO_TEMP;             // convert absolute temp to C
 
@@ -92,6 +95,10 @@ void measureBatteryTemperature() {
 }
 void resetBatteryTemperature() {
   maxBatteryTemperature = ABSOLUTE_ZERO_TEMP;
+}
+
+float getBatteryVoltage() {
+  return analogRead(BAT_VOLTAGE_PIN) * VOLTAGE_REF_COEF;
 }
 
 bool sendInfo() {
@@ -112,6 +119,9 @@ bool sendInfo() {
   if (!sendSms1(GATEWAY)) {
     return false;
   }
+  
+  Serial1.print(DATA_FORMAT_VERSION);
+  Serial1.print(",");
   Serial1.print(cycleStartSecond / 3600);
   Serial1.print(",");
   Serial1.print(info);
@@ -202,6 +212,8 @@ void procesInput() {
   }
 }
 
+bool chargingDisabled = false;
+
 void setup()
 {
   setupGsm();
@@ -213,10 +225,13 @@ void setup()
   pinMode(VIN_VOLTAGE_PIN, INPUT);
   pinMode(BATTERY_TEMP_PIN, INPUT);
 
-  pinMode(SOLAR_POWER_ENABLED_PIN, OUTPUT);
-  digitalWrite(SOLAR_POWER_ENABLED_PIN, HIGH);
+  pinMode(IS_CHARGING_PIN, INPUT);
+  pinMode(CHARGING_DISABLED_PIN, OUTPUT);
+  digitalWrite(CHARGING_DISABLED_PIN, LOW);
 
+  Serial.setTimeout(1000);
   Serial.begin(9600);
+  Serial1.setTimeout(1000);
   Serial1.begin(9600);
 
   delay(2000);
@@ -224,6 +239,8 @@ void setup()
 
 void loop()
 {
+  // TODO: sleep if no power
+  
   cycleStart = millis();
   cycleStartSecond = cycleStart / 1000;
   unsigned int secondOfHour = cycleStartSecond % 3600;
@@ -234,10 +251,19 @@ void loop()
   measureAnemo();
   measureBatteryTemperature();
 
-  bool sendBoost = secondOfHour == 1799 && getSolarVoltageAvg() >= 6.0f;
+  if (!chargingDisabled && getBatteryVoltage() > 4.05f) {
+    chargingDisabled = true;
+    digitalWrite(CHARGING_DISABLED_PIN, HIGH);
+  } else if (chargingDisabled && getBatteryVoltage() < 3.8f) {
+    chargingDisabled = false;
+    digitalWrite(CHARGING_DISABLED_PIN, LOW);
+  }
+
+  bool sendBoost = secondOfHour % 900 == 899/* && getSolarVoltageAvg() >= 6.0f*/;
   if (secondOfHour == 3599 || sendBoost || cycleStartSecond == 120) {
-    turnOn();
-    sendInfo();
+    if (turnOn()) {
+      sendInfo();      
+    }
     turnOff();
 
     resetSolarVoltage();

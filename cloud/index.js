@@ -16,6 +16,14 @@ function processRecord(record) {
   const text = message.messageBody.replace(/\s/g, '');
   const data = text.split(',').map(value => +value);
 
+  const dataFormatVersion = data[0];
+  if (dataFormatVersion !== 1) {
+    throw new Error(`Invalid version ${dataFormatVersion}`);
+  }
+  if (data.length !== 34) {
+    throw new Error(`Invalid data length ${data.length}`);
+  }
+
   const ts = record.Sns.Timestamp ? new Date(record.Sns.Timestamp).valueOf() : Date.now();
 
   const dimensions = [
@@ -26,7 +34,7 @@ function processRecord(record) {
   records.push({
     'Dimensions': dimensions,
     'MeasureName': 'uptime',
-    'MeasureValue': `${data[0]}`,
+    'MeasureValue': `${data[1]}`,
     'MeasureValueType': 'BIGINT',
     'Time': ts.toString(),
   });
@@ -34,7 +42,7 @@ function processRecord(record) {
   records.push({
     'Dimensions': dimensions,
     'MeasureName': 'battery_percent',
-    'MeasureValue': `${data[1]}`,
+    'MeasureValue': `${data[2]}`,
     'MeasureValueType': 'DOUBLE',
     'Time': ts.toString(),
   });
@@ -42,14 +50,14 @@ function processRecord(record) {
   records.push({
     'Dimensions': dimensions,
     'MeasureName': 'battery_voltage',
-    'MeasureValue': `${data[2] / 1000}`,
+    'MeasureValue': `${data[3] / 1000}`,
     'MeasureValueType': 'DOUBLE',
     'Time': ts.toString(),
   });
   records.push({
     'Dimensions': dimensions,
     'MeasureName': 'battery_temperature_max',
-    'MeasureValue': `${data[3]}`,
+    'MeasureValue': `${data[4]}`,
     'MeasureValueType': 'DOUBLE',
     'Time': ts.toString(),
   });
@@ -57,21 +65,21 @@ function processRecord(record) {
   records.push({
     'Dimensions': dimensions,
     'MeasureName': 'vin_voltage',
-    'MeasureValue': `${data[4]}`,
-    'MeasureValueType': 'DOUBLE',
-    'Time': ts.toString(),
-  });
-  records.push({
-    'Dimensions': dimensions,
-    'MeasureName': 'battery_voltage2',
     'MeasureValue': `${data[5]}`,
     'MeasureValueType': 'DOUBLE',
     'Time': ts.toString(),
   });
   records.push({
     'Dimensions': dimensions,
-    'MeasureName': 'solar_voltage',
+    'MeasureName': 'battery_voltage2',
     'MeasureValue': `${data[6]}`,
+    'MeasureValueType': 'DOUBLE',
+    'Time': ts.toString(),
+  });
+  records.push({
+    'Dimensions': dimensions,
+    'MeasureName': 'solar_voltage',
+    'MeasureValue': `${data[7]}`,
     'MeasureValueType': 'DOUBLE',
     'Time': ts.toString(),
   });
@@ -79,21 +87,21 @@ function processRecord(record) {
   records.push({
     'Dimensions': dimensions,
     'MeasureName': 'wind_speed_1h_avg',
-    'MeasureValue': `${data[7]}`,
-    'MeasureValueType': 'DOUBLE',
-    'Time': ts.toString(),
-  });
-  records.push({
-    'Dimensions': dimensions,
-    'MeasureName': 'wind_speed_1h_std_dev',
     'MeasureValue': `${data[8]}`,
     'MeasureValueType': 'DOUBLE',
     'Time': ts.toString(),
   });
   records.push({
     'Dimensions': dimensions,
-    'MeasureName': 'wind_speed_1h_max',
+    'MeasureName': 'wind_speed_1h_std_dev',
     'MeasureValue': `${data[9]}`,
+    'MeasureValueType': 'DOUBLE',
+    'Time': ts.toString(),
+  });
+  records.push({
+    'Dimensions': dimensions,
+    'MeasureName': 'wind_speed_1h_max',
+    'MeasureValue': `${data[10]}`,
     'MeasureValueType': 'DOUBLE',
     'Time': ts.toString(),
   });
@@ -101,21 +109,21 @@ function processRecord(record) {
   records.push({
     'Dimensions': dimensions,
     'MeasureName': 'wind_speed_10m_avg',
-    'MeasureValue': `${data[10]}`,
-    'MeasureValueType': 'DOUBLE',
-    'Time': ts.toString(),
-  });
-  records.push({
-    'Dimensions': dimensions,
-    'MeasureName': 'wind_speed_10m_std_dev',
     'MeasureValue': `${data[11]}`,
     'MeasureValueType': 'DOUBLE',
     'Time': ts.toString(),
   });
   records.push({
     'Dimensions': dimensions,
-    'MeasureName': 'wind_speed_10m_max',
+    'MeasureName': 'wind_speed_10m_std_dev',
     'MeasureValue': `${data[12]}`,
+    'MeasureValueType': 'DOUBLE',
+    'Time': ts.toString(),
+  });
+  records.push({
+    'Dimensions': dimensions,
+    'MeasureName': 'wind_speed_10m_max',
+    'MeasureValue': `${data[13]}`,
     'MeasureValueType': 'DOUBLE',
     'Time': ts.toString(),
   });
@@ -124,7 +132,7 @@ function processRecord(record) {
     records.push({
       'Dimensions': dimensions,
       'MeasureName': `wind_direction${direction}_1h`,
-      'MeasureValue': `${data[13 + direction]}`,
+      'MeasureValue': `${data[14 + direction]}`,
       'MeasureValueType': 'DOUBLE',
       'Time': ts.toString()
     });
@@ -134,7 +142,7 @@ function processRecord(record) {
     records.push({
       'Dimensions': dimensions,
       'MeasureName': `wind_direction${direction}_10m`,
-      'MeasureValue': `${data[21 + direction]}`,
+      'MeasureValue': `${data[22 + direction]}`,
       'MeasureValueType': 'DOUBLE',
       'Time': ts.toString()
     });
@@ -143,14 +151,6 @@ function processRecord(record) {
   records.push({
     'Dimensions': dimensions,
     'MeasureName': 'precipitation',
-    'MeasureValue': `${data[29]}`,
-    'MeasureValueType': 'DOUBLE',
-    'Time': ts.toString()
-  });
-
-  records.push({
-    'Dimensions': dimensions,
-    'MeasureName': 'temperature',
     'MeasureValue': `${data[30]}`,
     'MeasureValueType': 'DOUBLE',
     'Time': ts.toString()
@@ -158,7 +158,7 @@ function processRecord(record) {
 
   records.push({
     'Dimensions': dimensions,
-    'MeasureName': 'pressure',
+    'MeasureName': 'temperature',
     'MeasureValue': `${data[31]}`,
     'MeasureValueType': 'DOUBLE',
     'Time': ts.toString()
@@ -166,8 +166,16 @@ function processRecord(record) {
 
   records.push({
     'Dimensions': dimensions,
-    'MeasureName': 'humidity',
+    'MeasureName': 'pressure',
     'MeasureValue': `${data[32]}`,
+    'MeasureValueType': 'DOUBLE',
+    'Time': ts.toString()
+  });
+
+  records.push({
+    'Dimensions': dimensions,
+    'MeasureName': 'humidity',
+    'MeasureValue': `${data[33]}`,
     'MeasureValueType': 'DOUBLE',
     'Time': ts.toString()
   });
