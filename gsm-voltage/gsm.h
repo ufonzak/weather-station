@@ -197,6 +197,9 @@ void setupGsm()
   pinMode(GSM_POWER_PIN, OUTPUT);
   pinMode(GSM_RESET_PIN, OUTPUT);
 
-  digitalWrite(GSM_RESET_PIN, LOW);
+  digitalWrite(GSM_RESET_PIN, HIGH);
   digitalWrite(GSM_POWER_PIN, HIGH);
+  
+  Serial1.setTimeout(1000);
+  Serial1.begin(9600);
 }
