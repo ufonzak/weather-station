@@ -1,6 +1,6 @@
-#define GSM_STATUS_PIN (12)
-#define GSM_POWER_PIN (5)
-#define GSM_RESET_PIN (6)
+#define GSM_STATUS_PIN (11)
+#define GSM_POWER_PIN (12)
+#define GSM_RESET_PIN (10)
 
 bool turnOn() {
   Serial.println("Powering On...");
@@ -199,7 +199,7 @@ void setupGsm()
 
   digitalWrite(GSM_RESET_PIN, HIGH);
   digitalWrite(GSM_POWER_PIN, HIGH);
-  
+
   Serial1.setTimeout(1000);
   Serial1.begin(9600);
 }

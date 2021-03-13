@@ -18,8 +18,8 @@
 #define VOLTAGE_SOLAR_COEF (0.01030)
 #define VOLTAGE_SOLAR_COEF_INT (10300ul)
 
-#define CHARGING_DISABLED_PIN (10)
-#define IS_CHARGED_PIN (11)
+#define CHARGING_DISABLED_PIN (5)
+#define IS_CHARGED_PIN (6)
 
 // #define GATEWAY "7786812711"
 #define GATEWAY "2267814018"
@@ -113,6 +113,10 @@ unsigned int getBatteryVoltageInt() {
   return (unsigned int)(analogRead(BAT_VOLTAGE_PIN) * VOLTAGE_REF_COEF_INT / 1000ul);
 }
 
+unsigned int getInputVoltageInt() {
+  return (unsigned int)(analogRead(VIN_VOLTAGE_PIN) * VOLTAGE_REF_COEF_INT / 1000ul);
+}
+
 bool sendInfo() {
   if (!waitForRegistration(60)) {
     return false;
@@ -195,6 +199,8 @@ void procesInput() {
     Serial.print(voltageBattery);
     Serial.print(",");
     Serial.print(voltageSolar);
+    Serial.print(",");
+    Serial.print(getInputVoltageInt());
     Serial.print(",");
     Serial.print(getBatteryVoltageInt());
     Serial.print(",");
@@ -289,8 +295,11 @@ void loop()
 
   unsigned int batteryVoltage = getBatteryVoltageInt();
   if (batteryVoltage <= SLEEP_VOLTAGE) {
-    LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
-    return;
+    bool isUsb = getInputVoltageInt() > 4800;
+    if (!isUsb) {
+      LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
+      return;
+    }
   }
 
   cycleStart = millis();
