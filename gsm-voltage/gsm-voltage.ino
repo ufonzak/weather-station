@@ -16,8 +16,6 @@
 // #define GATEWAY "7786812711"
 #define GATEWAY "2267814018"
 
-#define SOLAR_POWER_ENABLED_PIN (6)
-
 #define BREATHE_LED (200)
 
 // TODO: watchdog
@@ -74,7 +72,7 @@ float readBatteryTemperature() {
   steinhart = resistance / THERMISTOR_R;     // (R/Ro)
   steinhart = log(steinhart);                // ln(R/Ro)
   steinhart /= THERMISTOR_BCOEFFICIENT;                   // 1/B * ln(R/Ro)
-  steinhart += 1.0 / (THERMISTOR_NOMINAL_TEMP + 273.15);  // + (1/To)
+  steinhart += 1.0 / (THERMISTOR_NOMINAL_TEMP - ABSOLUTE_ZERO_TEMP);  // + (1/To)
   steinhart = 1.0 / steinhart;
   steinhart += ABSOLUTE_ZERO_TEMP;             // convert absolute temp to C
 
@@ -212,9 +210,6 @@ void setup()
   pinMode(SOLAR_VOLTAGE_PIN, INPUT);
   pinMode(VIN_VOLTAGE_PIN, INPUT);
   pinMode(BATTERY_TEMP_PIN, INPUT);
-
-  pinMode(SOLAR_POWER_ENABLED_PIN, OUTPUT);
-  digitalWrite(SOLAR_POWER_ENABLED_PIN, HIGH);
 
   Serial.begin(9600);
   Serial1.begin(9600);
