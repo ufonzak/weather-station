@@ -23,9 +23,13 @@ bool turnOn() {
     return false;
   }
 
+  Serial1.println("AT");
+
   int seconds = 10;
+  char buffer[16];
   do {
-    Serial.print(Serial1.readString());
+    size_t read = Serial1.readBytes(buffer, sizeof(buffer));
+    Serial.write(buffer, read);
   } while (Serial1.available() || --seconds > 0);
 
   Serial.println("ON");
@@ -53,68 +57,67 @@ bool turnOff() {
     return false;
   }
 
+  char buffer[16];
   do {
-    Serial.print(Serial1.readString());
+    size_t read = Serial1.readBytes(buffer, sizeof(buffer));
+    Serial.write(buffer, read);
   } while (Serial1.available());
 
   Serial.println("OFF");
   return true;
 }
 
-bool readReply(String& reply) {
-  reply = Serial1.readStringUntil('\n');
-  if (reply.compareTo("\r") != 0) {
-    Serial.print("Unexpected return (expected \\r): ");
+bool readReply(char* reply, size_t bufferSize) {
+  size_t read = serial1ReadLine(reply, bufferSize - 1);
+  if (!read) {
+    return false;
+  }
+  if (strcmp(reply, "\r") != 0) {
+    Serial.print("Unexpected return (expected \\r): \"");
     Serial.print(reply);
     Serial.println("\"");
     return false;
   }
 
-  reply = Serial1.readStringUntil('\n');
-  if (reply.length() == 0) {
+  read = serial1ReadLine(reply, bufferSize - 1);
+  if (!read) {
     Serial.print("No reply");
     return false;
   }
 
-  reply.trim();
+  trimSpaces(reply);
   return true;
 }
 
 
 bool readOk() {
-  String reply;
-  if (!readReply(reply)) {
+  char buffer[8];
+  if (!readReply(buffer, sizeof(buffer))) {
+    Serial.print("NOK: \"");
+    Serial.print(buffer);
+    Serial.println("\"");
     return false;
   }
-  return reply.compareTo("OK") == 0;
+
+  return strcmp(buffer, "OK") == 0;
 }
 
 
-bool queryCmd(const char* toSend, String& reply) {
+bool queryCmd(const char* toSend, char* reply, size_t bufferSize) {
   Serial1.println(toSend);
-  String line;
-  if (!readReply(line)) {
+  if (!readReply(reply, bufferSize)) {
     return false;
   }
-  int dataBegin = line.indexOf(':');
-  if (dataBegin < 0) {
-    Serial.print("Error (query resp): ");
+  char* replyBegin = strchr(reply, ':');
+  if (!replyBegin || strncmp(toSend + 2, reply, replyBegin - reply) != 0) {
+    Serial.print("Error (query resp): \"");
     Serial.print(reply);
     Serial.println("\"");
     return false;
   }
 
-  reply = line.substring(dataBegin + 1);
-  reply.trim();
-
-  line = line.substring(0, dataBegin);
-  String cmdPart(toSend + 2);
-  if (!cmdPart.startsWith(line)) {
-    Serial.print("Not a valid reply: ");
-    Serial.print(line);
-    Serial.println("\"");
-    return false;
-  }
+  strcpy(reply, replyBegin + 1);
+  trimSpaces(reply);
 
   return readOk();
 }
@@ -124,18 +127,18 @@ bool setCmd(const char* toSend) {
   return readOk();
 }
 
-bool sendSms1(const char* number) {
+bool sendSms1(const char* number, char* buffer, size_t bufferSize) {
   Serial1.print("AT+CMGS=\"");
   Serial1.print(number);
   Serial1.println("\"");
 
-  String line;
-  if (!readReply(line)) {
-    return false;
-  }
-  if (line.compareTo(">") != 0) {
-    Serial.print("No prompt: ");
-    Serial.print(line);
+  size_t read = Serial1.readBytesUntil(' ', buffer, bufferSize - 1);
+  buffer[read] = '\0';
+  trimSpaces(buffer);
+
+  if (strcmp(buffer, ">") != 0) {
+    Serial.print("No prompt: \"");
+    Serial.print(buffer);
     Serial.println("\"");
     return false;
   }
@@ -150,7 +153,7 @@ bool waitForData(int secondsToWait) {
   return secondsToWait > 0;
 }
 
-bool sendSms2() {
+bool sendSms2(char* buffer, size_t bufferSize) {
   Serial1.write(26);
   Serial1.flush();
 
@@ -158,13 +161,12 @@ bool sendSms2() {
     return false;
   }
 
-  String reply;
-  if (!readReply(reply)) {
+  if (!readReply(buffer, bufferSize)) {
     return false;
   }
-  if (!reply.startsWith("+CMGS")) {
+  if (!startsWith(buffer, "+CMGS")) {
     Serial.print("Unexpected reply (sms): ");
-    Serial.print(reply);
+    Serial.print(buffer);
     Serial.println("\"");
     return false;
   }
@@ -172,20 +174,19 @@ bool sendSms2() {
   return readOk();
 }
 
-bool waitForRegistration(int secondsToWait) {
-  String reply;
+bool waitForRegistration(int secondsToWait, char* buffer, size_t bufferSize) {
   for (int att = secondsToWait; att > 0; att--) {
-    if (!queryCmd("AT+CGREG?", reply)) {
+    if (!queryCmd("AT+CGREG?", buffer, bufferSize)) {
       return false;
     }
 
-    if (reply.compareTo("0,1") == 0) {
+    if (strcmp(buffer, "0,1") == 0) {
       Serial.println("On Network");
       return true;
     }
 
     Serial.print("Waiting for network: ");
-    Serial.println(reply);
+    Serial.println(buffer);
     delay(1000);
   }
   return false;

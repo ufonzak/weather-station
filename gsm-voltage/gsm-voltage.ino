@@ -7,7 +7,10 @@
 #include <Adafruit_BME280.h>
 #include <LowPower.h>
 
+#include "utils.h"
+
 #define DATA_FORMAT_VERSION (1)
+#define GENERIC_BUFFER (32)
 
 #define VIN_VOLTAGE_PIN (A0)
 #define BAT_VOLTAGE_PIN (A1)
@@ -27,6 +30,7 @@
 #define BREATHE_LED (200)
 
 // TODO: watchdog
+// TODO: sms received ignore (breaks GSM at this moments)
 
 #include "gsm.h"
 
@@ -56,9 +60,6 @@ void readSolarVoltage() {
   unsigned long oldSum = solarVoltageSum;
   solarVoltageSum += (unsigned long)voltage;
   if (oldSum > solarVoltageSum) {
-#ifdef DEBUG
-    Serial.println("Solar voltage sum overflow");
-#endif
     solarVoltageSum = voltage;
     solarVoltageCount = 0;
   }
@@ -118,21 +119,21 @@ unsigned int getInputVoltageInt() {
 }
 
 bool sendInfo() {
-  if (!waitForRegistration(60)) {
+  char buffer[GENERIC_BUFFER];
+  if (!waitForRegistration(60, buffer, sizeof(buffer))) {
     return false;
   }
 
-  String info;
-  if (!queryCmd("AT+CBC", info)) {
+  char info[24];
+  if (!queryCmd("AT+CBC", info, sizeof(info))) {
     return false;
   }
-  info = info.substring(2);
 
   float voltageVin = analogRead(VIN_VOLTAGE_PIN) * VOLTAGE_REF_COEF;
   float voltageBattery = analogRead(BAT_VOLTAGE_PIN) * VOLTAGE_REF_COEF;
   float voltageSolar = getSolarVoltageAvg();
 
-  if (!sendSms1(GATEWAY)) {
+  if (!sendSms1(GATEWAY, buffer, sizeof(buffer))) {
     return false;
   }
 
@@ -140,7 +141,7 @@ bool sendInfo() {
   Serial1.print(",");
   Serial1.print(cycleStartSecond / 3600);
   Serial1.print(",");
-  Serial1.print(info);
+  Serial1.print(info + 2);
   Serial1.print(",");
   Serial1.print(maxBatteryTemperature);
   Serial1.print(",");
@@ -157,7 +158,7 @@ bool sendInfo() {
   printPrecipitation(false, true);
   printBmeData(false);
 
-  if (!sendSms2()) {
+  if (!sendSms2(buffer, sizeof(buffer))) {
     return false;
   }
 
@@ -169,28 +170,36 @@ void procesInput() {
     return;
   }
 
-  String cmd = Serial.readStringUntil('\n');
-  if (cmd.startsWith("AT")) {
+  char cmd[GENERIC_BUFFER];
+  size_t read = serialReadLine(cmd, sizeof(cmd));
+  if (!read) {
+    return;
+  }
+
+  if (startsWith(cmd, "AT")) {
+    Serial.println(cmd);
     Serial1.println(cmd);
 
     while(true) {
-      cmd = Serial1.readStringUntil('\n');
-      if (cmd.length() == 0){
+      read = serial1ReadLine(cmd, sizeof(cmd));
+      if (!read){
         break;
       }
       Serial.println(cmd);
     }
-  } else if (cmd.compareTo("test") == 0) {
+  } else if (strcmp(cmd, "test") == 0) {
     turnOn();
     if (!sendInfo()) {
       Serial.println("sendInfo failed");
+    } else {
+      Serial.println("TEST OK");
     }
     turnOff();
-  } else if (cmd.compareTo("on") == 0) {
+  } else if (strcmp(cmd, "on") == 0) {
     turnOn();
-  } else if (cmd.compareTo("off") == 0) {
+  } else if (strcmp(cmd, "off") == 0) {
     turnOff();
-  } else if (cmd.compareTo("analog") == 0) {
+  } else if (strcmp(cmd, "analog") == 0) {
     float voltageVin = analogRead(VIN_VOLTAGE_PIN) * VOLTAGE_REF_COEF;
     float voltageBattery = analogRead(BAT_VOLTAGE_PIN) * VOLTAGE_REF_COEF;
     float voltageSolar = analogRead(SOLAR_VOLTAGE_PIN) * VOLTAGE_SOLAR_COEF;
@@ -206,30 +215,33 @@ void procesInput() {
     Serial.print(",");
     Serial.print(getSolarVoltageAvgInt());
     Serial.println();
-  } else if (cmd.compareTo("direct") == 0) {
+  } else if (strcmp(cmd, "direct") == 0) {
     while(true) {
       if (Serial1.available()) {
-        cmd = Serial1.readString();
-        Serial.print(cmd);
+        read = Serial1.readBytes(cmd, sizeof(cmd));
+        Serial.write(cmd, read);
       }
       if (Serial.available()) {
-        cmd = Serial.readString();
-        Serial1.print(cmd);
+        read = Serial.readBytes(cmd, sizeof(cmd));
+        if (strncmp(cmd, "quit", 4) == 0) {
+          break;
+        }
+        Serial1.write(cmd, read);
       }
     }
-  } else if (cmd.compareTo("anemo") == 0) {
+  } else if (strcmp(cmd, "anemo") == 0) {
     printAnemo(true, ANEMO_SAMPLES_COUNT);
     printAnemo(true, 10);
-  } else if (cmd.compareTo("direction") == 0) {
+  } else if (strcmp(cmd, "direction") == 0) {
     printDirection(true, DIRECTION_DISTRIBUTION_SAMPLES);
     printDirection(true, 2);
-  } else if (cmd.compareTo("rain") == 0) {
+  } else if (strcmp(cmd, "rain") == 0) {
     printPrecipitation(true, false);
-  } else if (cmd.compareTo("bme") == 0) {
+  } else if (strcmp(cmd, "bme") == 0) {
     printBmeData(true);
-  } else if (cmd.compareTo("resetbme") == 0) {
+  } else if (strcmp(cmd, "resetbme") == 0) {
     setupBme();
-  } else if (cmd.compareTo("battery_t") == 0) {
+  } else if (strcmp(cmd, "battery_t") == 0) {
     Serial.println(analogRead(BATTERY_TEMP_PIN));
     Serial.println(readBatteryTemperature());
   }
@@ -288,8 +300,6 @@ void setup()
 
 void loop()
 {
-  // TODO: sms received ignore (breaks GSM at this moments)
-
   readSolarVoltage();
   batteryManagement();
 
