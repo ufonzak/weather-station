@@ -2,6 +2,15 @@
 #define GSM_POWER_PIN (12)
 #define GSM_RESET_PIN (10)
 
+void pipeData(int seconds) {
+  char buffer[16];
+  do {
+    wdt_reset();
+    size_t read = Serial1.readBytes(buffer, sizeof(buffer));
+    Serial.write(buffer, read);
+  } while (Serial1.available() || --seconds > 0);
+}
+
 bool turnOn() {
   Serial.println("Powering On...");
 
@@ -11,11 +20,11 @@ bool turnOn() {
   }
 
   digitalWrite(GSM_POWER_PIN, LOW);
-  delay(2000);
+  safeDelay(2000);
   digitalWrite(GSM_POWER_PIN, HIGH);
 
   for (int att = 5; att > 0 && !isOn; att--) {
-    delay(1000);
+    safeDelay(1000);
     isOn = digitalRead(GSM_STATUS_PIN) == HIGH;
   }
   if (!isOn) {
@@ -24,13 +33,7 @@ bool turnOn() {
   }
 
   Serial1.println("AT");
-
-  int seconds = 10;
-  char buffer[16];
-  do {
-    size_t read = Serial1.readBytes(buffer, sizeof(buffer));
-    Serial.write(buffer, read);
-  } while (Serial1.available() || --seconds > 0);
+  pipeData(10);
 
   Serial.println("ON");
   return true;
@@ -45,11 +48,11 @@ bool turnOff() {
   }
 
   digitalWrite(GSM_POWER_PIN, LOW);
-  delay(2000);
+  safeDelay(2000);
   digitalWrite(GSM_POWER_PIN, HIGH);
 
   for (int att = 5; att > 0 && isOn; att--) {
-    delay(1000);
+    safeDelay(1000);
     isOn = digitalRead(GSM_STATUS_PIN) == HIGH;
   }
   if (isOn) {
@@ -57,11 +60,7 @@ bool turnOff() {
     return false;
   }
 
-  char buffer[16];
-  do {
-    size_t read = Serial1.readBytes(buffer, sizeof(buffer));
-    Serial.write(buffer, read);
-  } while (Serial1.available());
+  pipeData(0);
 
   Serial.println("OFF");
   return true;
@@ -132,8 +131,7 @@ bool sendSms1(const char* number, char* buffer, size_t bufferSize) {
   Serial1.print(number);
   Serial1.println("\"");
 
-  size_t read = Serial1.readBytesUntil(' ', buffer, bufferSize - 1);
-  buffer[read] = '\0';
+  size_t read = serial1ReadUntil(' ', buffer, bufferSize - 1);
   trimSpaces(buffer);
 
   if (strcmp(buffer, ">") != 0) {
@@ -148,7 +146,7 @@ bool sendSms1(const char* number, char* buffer, size_t bufferSize) {
 
 bool waitForData(int secondsToWait) {
   while(!Serial1.available() && --secondsToWait > 0) {
-    delay(1000);
+    safeDelay(1000);
   }
   return secondsToWait > 0;
 }
@@ -187,7 +185,7 @@ bool waitForRegistration(int secondsToWait, char* buffer, size_t bufferSize) {
 
     Serial.print("Waiting for network: ");
     Serial.println(buffer);
-    delay(1000);
+    safeDelay(1000);
   }
   return false;
 }

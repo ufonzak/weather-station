@@ -6,6 +6,9 @@
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
 #include <LowPower.h>
+#include <avr/wdt.h>
+
+// #define DEBUG
 
 #include "utils.h"
 
@@ -29,7 +32,6 @@
 
 #define BREATHE_LED (200)
 
-// TODO: watchdog
 // TODO: sms received ignore (breaks GSM at this moments)
 
 #include "gsm.h"
@@ -217,6 +219,7 @@ void procesInput() {
     Serial.println();
   } else if (strcmp(cmd, "direct") == 0) {
     while(true) {
+      wdt_reset();
       if (Serial1.available()) {
         read = Serial1.readBytes(cmd, sizeof(cmd));
         Serial.write(cmd, read);
@@ -275,6 +278,8 @@ void batteryManagement() {
 
 void setup()
 {
+  wdt_enable(WDTO_8S);
+
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(BAT_VOLTAGE_PIN, INPUT);
   pinMode(SOLAR_VOLTAGE_PIN, INPUT);
@@ -291,7 +296,9 @@ void setup()
   setupGsm();
   setupWeather();
 
-  delay(2000);
+  digitalWrite(LED_BUILTIN, HIGH);
+  safeDelay(1000);
+  digitalWrite(LED_BUILTIN, LOW);
   Serial.println("Start");
 }
 
@@ -300,6 +307,8 @@ void setup()
 
 void loop()
 {
+  wdt_reset();
+
   readSolarVoltage();
   batteryManagement();
 
@@ -307,7 +316,7 @@ void loop()
   if (batteryVoltage <= SLEEP_VOLTAGE) {
     bool isUsb = getInputVoltageInt() > 4800;
     if (!isUsb) {
-      LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
+      LowPower.powerDown(SLEEP_4S, ADC_OFF, BOD_ON);
       return;
     }
   }
