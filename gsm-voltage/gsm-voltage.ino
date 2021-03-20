@@ -41,6 +41,10 @@ unsigned long cycleStartSecond;
 
 #include "weather.h"
 
+bool chargingDisabled = false;
+
+unsigned int sendFailCount = 0;
+
 unsigned long solarVoltageSum;
 unsigned long solarVoltageCount;
 
@@ -250,8 +254,6 @@ void procesInput() {
   }
 }
 
-bool chargingDisabled = false;
-
 void batteryManagement() {
   unsigned int batteryVoltage = getBatteryVoltageInt();
   int thermistor = analogRead(BATTERY_TEMP_PIN);
@@ -335,9 +337,17 @@ void loop()
   if (shouldSend) {
     if (batteryVoltage > MIN_GSM_VOLTAGE) {
       if (turnOn()) {
-        sendInfo();
+        if (sendInfo()) {
+          sendFailCount = 0;
+        } else {
+          sendFailCount++;
+        }
       }
       turnOff();
+
+      if (sendFailCount >= 3) {
+        delay(10000); // expire watchdog
+      }
     }
 
     resetSolarVoltage();
