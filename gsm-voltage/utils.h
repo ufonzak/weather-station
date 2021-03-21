@@ -39,3 +39,13 @@ void safeDelay(unsigned int delayTime) {
   wdt_reset();
   delay(delayTime);
 }
+
+void appendComma(char** bufferPtr) {
+  (*bufferPtr)[0] = ',';
+  ++(*bufferPtr);
+}
+
+void appendFloat(char** bufferPtr, float value) {
+  dtostrf(value, 4, 2, *bufferPtr);
+  *bufferPtr += strlen(*bufferPtr);
+}

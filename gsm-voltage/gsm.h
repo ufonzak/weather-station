@@ -101,6 +101,16 @@ bool readOk() {
   return strcmp(buffer, "OK") == 0;
 }
 
+bool readDownload(char* buffer, size_t bufferSize) {
+  if (!readReply(buffer, bufferSize)) {
+    Serial.print("NOK: \"");
+    Serial.print(buffer);
+    Serial.println("\"");
+    return false;
+  }
+
+  return strcmp(buffer, "DOWNLOAD") == 0;
+}
 
 bool queryCmd(const char* toSend, char* reply, size_t bufferSize) {
   Serial1.println(toSend);
@@ -126,6 +136,14 @@ bool setCmd(const char* toSend) {
   return readOk();
 }
 
+bool waitForData(int secondsToWait) {
+  while(!Serial1.available() && --secondsToWait > 0) {
+    safeDelay(1000);
+  }
+  return secondsToWait > 0;
+}
+
+/*
 bool sendSms1(const char* number, char* buffer, size_t bufferSize) {
   Serial1.print("AT+CMGS=\"");
   Serial1.print(number);
@@ -142,13 +160,6 @@ bool sendSms1(const char* number, char* buffer, size_t bufferSize) {
   }
 
   return true;
-}
-
-bool waitForData(int secondsToWait) {
-  while(!Serial1.available() && --secondsToWait > 0) {
-    safeDelay(1000);
-  }
-  return secondsToWait > 0;
 }
 
 bool sendSms2(char* buffer, size_t bufferSize) {
@@ -171,6 +182,7 @@ bool sendSms2(char* buffer, size_t bufferSize) {
 
   return readOk();
 }
+*/
 
 bool waitForRegistration(int secondsToWait, char* buffer, size_t bufferSize) {
   for (int att = secondsToWait; att > 0; att--) {
@@ -185,6 +197,20 @@ bool waitForRegistration(int secondsToWait, char* buffer, size_t bufferSize) {
 
     Serial.print("Waiting for network: ");
     Serial.println(buffer);
+    safeDelay(1000);
+  }
+  return false;
+}
+
+bool waitForGprs(int secondsToWait, char* buffer, size_t bufferSize) {
+  for (int att = secondsToWait; att > 0; att--) {
+    if (!queryCmd("AT+SAPBR=2,1", buffer, bufferSize)) {
+      return false;
+    }
+    if (startsWith(buffer, "1,1,")) {
+      return true;
+    }
+
     safeDelay(1000);
   }
   return false;

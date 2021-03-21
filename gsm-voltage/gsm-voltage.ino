@@ -8,8 +8,6 @@
 #include <LowPower.h>
 #include <avr/wdt.h>
 
-// #define DEBUG
-
 #include "utils.h"
 
 #define DATA_FORMAT_VERSION (1)
@@ -27,8 +25,12 @@
 #define CHARGING_DISABLED_PIN (5)
 #define IS_CHARGED_PIN (6)
 
-// #define GATEWAY "7786812711"
 #define GATEWAY "2267814018"
+
+#define APN "internet.fido.ca"
+#define APN_USER "fido"
+#define APN_PWD "fido"
+#define STATION "pemberton"
 
 #define BREATHE_LED (200)
 
@@ -124,47 +126,132 @@ unsigned int getInputVoltageInt() {
   return (unsigned int)(analogRead(VIN_VOLTAGE_PIN) * VOLTAGE_REF_COEF_INT / 1000ul);
 }
 
+size_t prepareData(char* dataBuffer, char* buffer, size_t bufferSize) {
+  char* bufferPtr = dataBuffer;
+  bufferPtr[0] = '\0';
+
+  bufferPtr += sprintf(bufferPtr, "%d,%d", DATA_FORMAT_VERSION, cycleStartSecond / 3600);
+
+  if (queryCmd("AT+CBC", buffer, bufferSize)) {
+    strcpy(bufferPtr, buffer + 1);
+    bufferPtr += strlen(bufferPtr);
+  } else {    
+    bufferPtr += sprintf(bufferPtr, ",0,0");
+  }
+
+  {
+    float voltageVin = analogRead(VIN_VOLTAGE_PIN) * VOLTAGE_REF_COEF;
+    float voltageBattery = analogRead(BAT_VOLTAGE_PIN) * VOLTAGE_REF_COEF;
+    float voltageSolar = getSolarVoltageAvg();
+
+    appendComma(&bufferPtr);    
+    appendFloat(&bufferPtr, maxBatteryTemperature);    
+    appendComma(&bufferPtr);
+    appendFloat(&bufferPtr, voltageVin);      
+    appendComma(&bufferPtr);
+    appendFloat(&bufferPtr, voltageBattery);    
+    appendComma(&bufferPtr);
+    appendFloat(&bufferPtr, voltageSolar); 
+  }
+
+  printAnemo(bufferPtr, ANEMO_SAMPLES_COUNT);
+  bufferPtr += strlen(bufferPtr);
+  printAnemo(bufferPtr, 10);
+  bufferPtr += strlen(bufferPtr);
+    
+  printDirection(bufferPtr, DIRECTION_DISTRIBUTION_SAMPLES);
+  bufferPtr += strlen(bufferPtr);
+  printDirection(bufferPtr, 2);
+  bufferPtr += strlen(bufferPtr);
+  printPrecipitation(bufferPtr, true);
+  bufferPtr += strlen(bufferPtr);
+  printBmeData(bufferPtr);
+  bufferPtr += strlen(bufferPtr);
+
+  int totalLength = bufferPtr - dataBuffer;
+  return totalLength;
+}
+
+bool makeHttp(char* data, size_t dataLength, char* buffer, size_t bufferSize) {
+  if (!setCmd("AT+HTTPINIT")) {
+    return false;
+  }
+  if (!setCmd("AT+HTTPPARA=\"CID\",1")) {
+    return false;
+  }
+  if (!setCmd("AT+HTTPPARA=\"URL\",\"http://weather.martinzak.me/api/data/"STATION"\"")) {
+    return false;
+  }
+  
+  Serial1.print("AT+HTTPDATA=");
+  Serial1.print(dataLength);
+  Serial1.println(",20000");
+  if (!readDownload(buffer, bufferSize)) {
+    return false;
+  }
+  
+  Serial1.println(data);
+  if (!readOk()) {
+    return false;
+  }
+
+  if (!setCmd("AT+HTTPACTION=1")) {
+    return false;
+  }
+  
+  if (!waitForData(30)) {
+    return false;
+  }
+  
+  if (!readReply(buffer, bufferSize)) {
+    return false;
+  }
+  if (strcmp(buffer, "+HTTPACTION: 1,204,0") != 0) {
+    Serial.print("HTTP Error:");    
+    Serial.println(buffer);    
+  }
+
+  if (!setCmd("AT+HTTPTERM")) {
+    return false;
+  }
+  return true;
+}
+
 bool sendInfo() {
   char buffer[GENERIC_BUFFER];
+  
+  char dataBuffer[192];
+  size_t totalLength = prepareData(dataBuffer, buffer, sizeof(buffer));
+  
   if (!waitForRegistration(60, buffer, sizeof(buffer))) {
     return false;
   }
-
-  char info[24];
-  if (!queryCmd("AT+CBC", info, sizeof(info))) {
+  
+  if (!setCmd("AT+SAPBR=3,1,\"Contype\",\"GPRS\"")) {
+    return false;
+  }
+  if (!setCmd("AT+SAPBR=3,1,\"APN\",\""APN"\"")) {
+    return false;
+  }
+  if (!setCmd("AT+SAPBR=3,1,\"USER\",\""APN_USER"\"")) {
+    return false;
+  }
+  if (!setCmd("AT+SAPBR=3,1,\"PWD\",\""APN_PWD"\"")) {
     return false;
   }
 
-  float voltageVin = analogRead(VIN_VOLTAGE_PIN) * VOLTAGE_REF_COEF;
-  float voltageBattery = analogRead(BAT_VOLTAGE_PIN) * VOLTAGE_REF_COEF;
-  float voltageSolar = getSolarVoltageAvg();
-
-  if (!sendSms1(GATEWAY, buffer, sizeof(buffer))) {
+  if (!setCmd("AT+SAPBR=1,1")) {
     return false;
   }
+  if (!waitForGprs(20, buffer, sizeof(buffer))) {
+    return false;    
+  }
 
-  Serial1.print(DATA_FORMAT_VERSION);
-  Serial1.print(",");
-  Serial1.print(cycleStartSecond / 3600);
-  Serial1.print(",");
-  Serial1.print(info + 2);
-  Serial1.print(",");
-  Serial1.print(maxBatteryTemperature);
-  Serial1.print(",");
-  Serial1.print(voltageVin);
-  Serial1.print(",");
-  Serial1.print(voltageBattery);
-  Serial1.print(",");
-  Serial1.print(voltageSolar);
+  if(!makeHttp(dataBuffer, totalLength, buffer, sizeof(buffer))) {
+    return false;    
+  }
 
-  printAnemo(false, ANEMO_SAMPLES_COUNT);
-  printAnemo(false, 10);
-  printDirection(false, DIRECTION_DISTRIBUTION_SAMPLES);
-  printDirection(false, 2);
-  printPrecipitation(false, true);
-  printBmeData(false);
-
-  if (!sendSms2(buffer, sizeof(buffer))) {
+  if (!setCmd("AT+SAPBR=0,1")) {
     return false;
   }
 
@@ -200,7 +287,7 @@ void procesInput() {
     } else {
       Serial.println("TEST OK");
     }
-    turnOff();
+    // turnOff();
   } else if (strcmp(cmd, "on") == 0) {
     turnOn();
   } else if (strcmp(cmd, "off") == 0) {
@@ -237,15 +324,15 @@ void procesInput() {
       }
     }
   } else if (strcmp(cmd, "anemo") == 0) {
-    printAnemo(true, ANEMO_SAMPLES_COUNT);
-    printAnemo(true, 10);
+    printAnemo(NULL, ANEMO_SAMPLES_COUNT);
+    printAnemo(NULL, 10);
   } else if (strcmp(cmd, "direction") == 0) {
-    printDirection(true, DIRECTION_DISTRIBUTION_SAMPLES);
-    printDirection(true, 2);
+    printDirection(NULL, DIRECTION_DISTRIBUTION_SAMPLES);
+    printDirection(NULL, 2);
   } else if (strcmp(cmd, "rain") == 0) {
-    printPrecipitation(true, false);
+    printPrecipitation(NULL, false);
   } else if (strcmp(cmd, "bme") == 0) {
-    printBmeData(true);
+    printBmeData(NULL);
   } else if (strcmp(cmd, "resetbme") == 0) {
     setupBme();
   } else if (strcmp(cmd, "battery_t") == 0) {

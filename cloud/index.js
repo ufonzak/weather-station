@@ -13,7 +13,10 @@ const writeClient = new AWS.TimestreamWrite({
 
 function processRecord(event) {
   const { station } = event.pathParameters;
-  const rawData = event.body;
+  let rawData = event.body;
+  if (event.isBase64Encoded) {
+    rawData = Buffer.from(rawData, 'base64').toString('ascii');
+  }
   const data = rawData.split(',').map(value => +value);
   console.log(station, rawData);
 
@@ -195,3 +198,6 @@ exports.handler = async (event) => {
   await writeClient.writeRecords(params).promise();
   return { statusCode: 204 };
 };
+
+1,26,53,3825,19.92,4.43,3.82,4.90,0,0.00,0,0,0.00,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.00,23.11,1020.81,43
+1, 0,51,3815,23.29,5.05,3.80,0.00,0,0.00,0,0,0.00,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,00.00,0.00,0
