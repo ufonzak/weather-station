@@ -11,10 +11,11 @@ const writeClient = new AWS.TimestreamWrite({
   },
 });
 
-function processRecord(record) {
-  const message = JSON.parse(record.Sns.Message);
-  const text = message.messageBody.replace(/\s/g, '');
-  const data = text.split(',').map(value => +value);
+function processRecord(event) {
+  const { station } = event.pathParameters;
+  const rawData = event.body;
+  const data = rawData.split(',').map(value => +value);
+  console.log(station, rawData);
 
   const dataFormatVersion = data[0];
   if (dataFormatVersion !== 1) {
@@ -24,10 +25,10 @@ function processRecord(record) {
     throw new Error(`Invalid data length ${data.length}`);
   }
 
-  const ts = record.Sns.Timestamp ? new Date(record.Sns.Timestamp).valueOf() : Date.now();
+  const ts = event.requestContext.timeEpoch || Date.now();
 
   const dimensions = [
-    {'Name': 'station', 'Value': message.originationNumber},
+    {'Name': 'station', 'Value': station},
   ];
   const records = [];
 
@@ -185,14 +186,12 @@ function processRecord(record) {
 }
 
 exports.handler = async (event) => {
-  const records = [];
-  for (const record of event.Records) {
-    records.push(...processRecord(record));
-  }
+  const records = processRecord(event);
   const params = {
     DatabaseName: 'weather',
     TableName: 'records',
     Records: records,
   };
   await writeClient.writeRecords(params).promise();
+  return { statusCode: 204 };
 };
