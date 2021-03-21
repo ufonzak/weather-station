@@ -6,7 +6,7 @@ void pipeData(int seconds) {
   char buffer[16];
   do {
     wdt_reset();
-    size_t read = Serial1.readBytes(buffer, sizeof(buffer));
+    siz_t read = Serial1.readBytes(buffer, sizeof(buffer));
     Serial.write(buffer, read);
   } while (Serial1.available() || --seconds > 0);
 }
@@ -66,20 +66,20 @@ bool turnOff() {
   return true;
 }
 
-bool readReply(char* reply, size_t bufferSize) {
-  size_t read = serial1ReadLine(reply, bufferSize - 1);
-  if (!read) {
+bool readReply(char* reply, siz_t bufferSize, int timeout) {
+  siz_t read = serial1ReadLine(reply, bufferSize, timeout);
+  if (read == 0) {
     return false;
   }
   if (strcmp(reply, "\r") != 0) {
-    Serial.print("Unexpected return (expected \\r): \"");
+    Serial.print("(expected \\r): \"");
     Serial.print(reply);
     Serial.println("\"");
     return false;
   }
 
-  read = serial1ReadLine(reply, bufferSize - 1);
-  if (!read) {
+  read = serial1ReadLine(reply, bufferSize, timeout);
+  if (read == 0) {
     Serial.print("No reply");
     return false;
   }
@@ -88,33 +88,31 @@ bool readReply(char* reply, size_t bufferSize) {
   return true;
 }
 
+bool readExpected(const char* expected, char* buffer, siz_t bufferSize, int timeout = 1) {
+  if (!readReply(buffer, bufferSize, timeout)) {
+    return false;
+  }
 
-bool readOk() {
+  if (strcmp(buffer, expected) != 0) {
+    Serial.print("Unexpected: \"");
+    Serial.print(buffer);
+    Serial.print("!=");
+    Serial.print(expected);
+    Serial.println("\"");
+    return false;
+  }
+
+  return true;
+}
+
+bool readOk(int timeout = 1) {
   char buffer[8];
-  if (!readReply(buffer, sizeof(buffer))) {
-    Serial.print("NOK: \"");
-    Serial.print(buffer);
-    Serial.println("\"");
-    return false;
-  }
-
-  return strcmp(buffer, "OK") == 0;
+  return readExpected("OK", buffer, sizeof(buffer), timeout);
 }
 
-bool readDownload(char* buffer, size_t bufferSize) {
-  if (!readReply(buffer, bufferSize)) {
-    Serial.print("NOK: \"");
-    Serial.print(buffer);
-    Serial.println("\"");
-    return false;
-  }
-
-  return strcmp(buffer, "DOWNLOAD") == 0;
-}
-
-bool queryCmd(const char* toSend, char* reply, size_t bufferSize) {
+bool queryCmd(const char* toSend, char* reply, siz_t bufferSize, int timeout = 1) {
   Serial1.println(toSend);
-  if (!readReply(reply, bufferSize)) {
+  if (!readReply(reply, bufferSize, timeout)) {
     return false;
   }
   char* replyBegin = strchr(reply, ':');
@@ -131,11 +129,12 @@ bool queryCmd(const char* toSend, char* reply, size_t bufferSize) {
   return readOk();
 }
 
-bool setCmd(const char* toSend) {
+bool setCmd(const char* toSend, int timeout = 1) {
   Serial1.println(toSend);
-  return readOk();
+  return readOk(timeout);
 }
 
+/*
 bool waitForData(int secondsToWait) {
   while(!Serial1.available() && --secondsToWait > 0) {
     safeDelay(1000);
@@ -143,13 +142,12 @@ bool waitForData(int secondsToWait) {
   return secondsToWait > 0;
 }
 
-/*
-bool sendSms1(const char* number, char* buffer, size_t bufferSize) {
+bool sendSms1(const char* number, char* buffer, siz_t bufferSize) {
   Serial1.print("AT+CMGS=\"");
   Serial1.print(number);
   Serial1.println("\"");
 
-  size_t read = serial1ReadUntil(' ', buffer, bufferSize - 1);
+  siz_t read = serial1ReadUntil(' ', buffer, bufferSize - 1);
   trimSpaces(buffer);
 
   if (strcmp(buffer, ">") != 0) {
@@ -162,15 +160,11 @@ bool sendSms1(const char* number, char* buffer, size_t bufferSize) {
   return true;
 }
 
-bool sendSms2(char* buffer, size_t bufferSize) {
+bool sendSms2(char* buffer, siz_t bufferSize) {
   Serial1.write(26);
   Serial1.flush();
 
-  if (!waitForData(15)) {
-    return false;
-  }
-
-  if (!readReply(buffer, bufferSize)) {
+  if (!readReply(buffer, bufferSize, 15)) {
     return false;
   }
   if (!startsWith(buffer, "+CMGS")) {
@@ -184,7 +178,7 @@ bool sendSms2(char* buffer, size_t bufferSize) {
 }
 */
 
-bool waitForRegistration(int secondsToWait, char* buffer, size_t bufferSize) {
+bool waitForRegistration(int secondsToWait, char* buffer, siz_t bufferSize) {
   for (int att = secondsToWait; att > 0; att--) {
     if (!queryCmd("AT+CGREG?", buffer, bufferSize)) {
       return false;
@@ -194,20 +188,20 @@ bool waitForRegistration(int secondsToWait, char* buffer, size_t bufferSize) {
       Serial.println("On Network");
       return true;
     }
-
-    Serial.print("Waiting for network: ");
-    Serial.println(buffer);
+    
     safeDelay(1000);
   }
   return false;
 }
 
-bool waitForGprs(int secondsToWait, char* buffer, size_t bufferSize) {
+bool waitForGprs(int secondsToWait, char* buffer, siz_t bufferSize) {
   for (int att = secondsToWait; att > 0; att--) {
     if (!queryCmd("AT+SAPBR=2,1", buffer, bufferSize)) {
       return false;
     }
     if (startsWith(buffer, "1,1,")) {
+      Serial.print("GPRS: ");
+      Serial.println(buffer);
       return true;
     }
 

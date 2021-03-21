@@ -49,6 +49,7 @@ unsigned int sendFailCount = 0;
 
 unsigned long solarVoltageSum;
 unsigned long solarVoltageCount;
+unsigned int batteryVoltage;
 
 float getSolarVoltageAvg() {
   if (solarVoltageCount == 0) {
@@ -126,16 +127,15 @@ unsigned int getInputVoltageInt() {
   return (unsigned int)(analogRead(VIN_VOLTAGE_PIN) * VOLTAGE_REF_COEF_INT / 1000ul);
 }
 
-size_t prepareData(char* dataBuffer, char* buffer, size_t bufferSize) {
+siz_t prepareData(char* dataBuffer, char* buffer, siz_t bufferSize) {
   char* bufferPtr = dataBuffer;
-  bufferPtr[0] = '\0';
 
   bufferPtr += sprintf(bufferPtr, "%d,%d", DATA_FORMAT_VERSION, cycleStartSecond / 3600);
 
   if (queryCmd("AT+CBC", buffer, bufferSize)) {
     strcpy(bufferPtr, buffer + 1);
     bufferPtr += strlen(bufferPtr);
-  } else {    
+  } else {
     bufferPtr += sprintf(bufferPtr, ",0,0");
   }
 
@@ -144,35 +144,30 @@ size_t prepareData(char* dataBuffer, char* buffer, size_t bufferSize) {
     float voltageBattery = analogRead(BAT_VOLTAGE_PIN) * VOLTAGE_REF_COEF;
     float voltageSolar = getSolarVoltageAvg();
 
-    appendComma(&bufferPtr);    
-    appendFloat(&bufferPtr, maxBatteryTemperature);    
     appendComma(&bufferPtr);
-    appendFloat(&bufferPtr, voltageVin);      
+    appendFloat(&bufferPtr, maxBatteryTemperature);
     appendComma(&bufferPtr);
-    appendFloat(&bufferPtr, voltageBattery);    
+    appendFloat(&bufferPtr, voltageVin);
     appendComma(&bufferPtr);
-    appendFloat(&bufferPtr, voltageSolar); 
+    appendFloat(&bufferPtr, voltageBattery);
+    appendComma(&bufferPtr);
+    appendFloat(&bufferPtr, voltageSolar);
   }
 
-  printAnemo(bufferPtr, ANEMO_SAMPLES_COUNT);
-  bufferPtr += strlen(bufferPtr);
-  printAnemo(bufferPtr, 10);
-  bufferPtr += strlen(bufferPtr);
-    
-  printDirection(bufferPtr, DIRECTION_DISTRIBUTION_SAMPLES);
-  bufferPtr += strlen(bufferPtr);
-  printDirection(bufferPtr, 2);
-  bufferPtr += strlen(bufferPtr);
-  printPrecipitation(bufferPtr, true);
-  bufferPtr += strlen(bufferPtr);
-  printBmeData(bufferPtr);
-  bufferPtr += strlen(bufferPtr);
+  printAnemo(&bufferPtr, ANEMO_SAMPLES_COUNT);
+  printAnemo(&bufferPtr, 10);
+
+  printDirection(&bufferPtr, DIRECTION_DISTRIBUTION_SAMPLES);
+  printDirection(&bufferPtr, 2);
+
+  printPrecipitation(&bufferPtr, true);
+  printBmeData(&bufferPtr);
 
   int totalLength = bufferPtr - dataBuffer;
   return totalLength;
 }
 
-bool makeHttp(char* data, size_t dataLength, char* buffer, size_t bufferSize) {
+bool makeHttp(char* data, siz_t dataLength, char* buffer, siz_t bufferSize) {
   if (!setCmd("AT+HTTPINIT")) {
     return false;
   }
@@ -182,14 +177,14 @@ bool makeHttp(char* data, size_t dataLength, char* buffer, size_t bufferSize) {
   if (!setCmd("AT+HTTPPARA=\"URL\",\"http://weather.martinzak.me/api/data/"STATION"\"")) {
     return false;
   }
-  
+
   Serial1.print("AT+HTTPDATA=");
   Serial1.print(dataLength);
   Serial1.println(",20000");
-  if (!readDownload(buffer, bufferSize)) {
+  if (!readExpected("DOWNLOAD", buffer, bufferSize, 5)) {
     return false;
   }
-  
+
   Serial1.println(data);
   if (!readOk()) {
     return false;
@@ -198,17 +193,12 @@ bool makeHttp(char* data, size_t dataLength, char* buffer, size_t bufferSize) {
   if (!setCmd("AT+HTTPACTION=1")) {
     return false;
   }
-  
-  if (!waitForData(30)) {
-    return false;
-  }
-  
-  if (!readReply(buffer, bufferSize)) {
+  if (!readReply(buffer, bufferSize, 30)) {
     return false;
   }
   if (strcmp(buffer, "+HTTPACTION: 1,204,0") != 0) {
-    Serial.print("HTTP Error:");    
-    Serial.println(buffer);    
+    Serial.print("HTTP Error:");
+    Serial.println(buffer);
   }
 
   if (!setCmd("AT+HTTPTERM")) {
@@ -217,16 +207,16 @@ bool makeHttp(char* data, size_t dataLength, char* buffer, size_t bufferSize) {
   return true;
 }
 
-bool sendInfo() {
+bool sendData() {
   char buffer[GENERIC_BUFFER];
-  
+
   char dataBuffer[192];
-  size_t totalLength = prepareData(dataBuffer, buffer, sizeof(buffer));
-  
+  siz_t totalLength = prepareData(dataBuffer, buffer, sizeof(buffer));
+
   if (!waitForRegistration(60, buffer, sizeof(buffer))) {
     return false;
   }
-  
+
   if (!setCmd("AT+SAPBR=3,1,\"Contype\",\"GPRS\"")) {
     return false;
   }
@@ -240,18 +230,18 @@ bool sendInfo() {
     return false;
   }
 
-  if (!setCmd("AT+SAPBR=1,1")) {
+  if (!setCmd("AT+SAPBR=1,1", 5)) {
     return false;
   }
   if (!waitForGprs(20, buffer, sizeof(buffer))) {
-    return false;    
+    return false;
   }
 
   if(!makeHttp(dataBuffer, totalLength, buffer, sizeof(buffer))) {
-    return false;    
+    return false;
   }
 
-  if (!setCmd("AT+SAPBR=0,1")) {
+  if (!setCmd("AT+SAPBR=0,1", 5)) {
     return false;
   }
 
@@ -264,7 +254,7 @@ void procesInput() {
   }
 
   char cmd[GENERIC_BUFFER];
-  size_t read = serialReadLine(cmd, sizeof(cmd));
+  siz_t read = serialReadLine(cmd, sizeof(cmd));
   if (!read) {
     return;
   }
@@ -274,7 +264,7 @@ void procesInput() {
     Serial1.println(cmd);
 
     while(true) {
-      read = serial1ReadLine(cmd, sizeof(cmd));
+      read = serial1ReadLine(cmd, sizeof(cmd), 1);
       if (!read){
         break;
       }
@@ -282,8 +272,8 @@ void procesInput() {
     }
   } else if (strcmp(cmd, "test") == 0) {
     turnOn();
-    if (!sendInfo()) {
-      Serial.println("sendInfo failed");
+    if (!sendData()) {
+      Serial.println("sendData failed");
     } else {
       Serial.println("TEST OK");
     }
@@ -342,7 +332,7 @@ void procesInput() {
 }
 
 void batteryManagement() {
-  unsigned int batteryVoltage = getBatteryVoltageInt();
+  batteryVoltage = getBatteryVoltageInt();
   int thermistor = analogRead(BATTERY_TEMP_PIN);
 
   // values precalculated
@@ -401,7 +391,6 @@ void loop()
   readSolarVoltage();
   batteryManagement();
 
-  unsigned int batteryVoltage = getBatteryVoltageInt();
   if (batteryVoltage <= SLEEP_VOLTAGE) {
     bool isUsb = getInputVoltageInt() > 4800;
     if (!isUsb) {
@@ -419,12 +408,12 @@ void loop()
   measureAnemo();
   measureBatteryTemperature();
 
-  bool sendBoost = secondOfHour % 900 == 899 && getSolarVoltageAvgInt() >= 6000;
+  bool sendBoost = secondOfHour % 600 == 599 && getSolarVoltageAvgInt() >= 6000;
   bool shouldSend = secondOfHour == 3599 || sendBoost || cycleStartSecond == 120;
   if (shouldSend) {
     if (batteryVoltage > MIN_GSM_VOLTAGE) {
       if (turnOn()) {
-        if (sendInfo()) {
+        if (sendData()) {
           sendFailCount = 0;
         } else {
           sendFailCount++;

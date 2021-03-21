@@ -169,7 +169,7 @@ void measureDirection()  {
   directionDistribution[sampleIndex][direction]++;
 }
 
-void printAnemo(char* buffer, int samplesBack) {
+void printAnemo(char** bufferPtr, int samplesBack) {
   unsigned int averageSpeed = 0;
   byte maxGust = 0;
   for (int i = 0; i < samplesBack; i++) {
@@ -188,7 +188,7 @@ void printAnemo(char* buffer, int samplesBack) {
   }
   float stdDevSpeed = sqrt(stdDevSum / (samplesBack - 1.f));
 
-  if (!buffer) {
+  if (!bufferPtr) {
     Serial.print("Anemo stats ");
     Serial.print(samplesBack);
     Serial.print(" ");
@@ -199,13 +199,13 @@ void printAnemo(char* buffer, int samplesBack) {
     Serial.print(maxGust);
     Serial.println();
   } else {
-    buffer += sprintf(buffer, ",%d,", averageSpeed);
-    appendFloat(&buffer, stdDevSpeed);
-    buffer += sprintf(buffer, ",%d", maxGust);
+    *bufferPtr += sprintf(*bufferPtr, ",%d,", averageSpeed);
+    appendFloat(bufferPtr, stdDevSpeed);
+    *bufferPtr += sprintf(*bufferPtr, ",%d", maxGust);
   }
 }
 
-void printDirection(char* buffer, int samplesBack) {
+void printDirection(char** bufferPtr, int samplesBack) {
   unsigned long dist[DIRECTION_DISTRIBUTION_SAMPLES];
   unsigned long total = 0;
 
@@ -223,7 +223,7 @@ void printDirection(char* buffer, int samplesBack) {
     }
   }
 
-  if (!buffer) {
+  if (!bufferPtr) {
     Serial.print("Direction dist ");
     Serial.print(samplesBack);
     for (int d = 0; d < DIRECTION_COUNT; d++) {
@@ -233,7 +233,7 @@ void printDirection(char* buffer, int samplesBack) {
     Serial.println();
   } else {
     for (int d = 0; d < DIRECTION_COUNT; d++) {
-      buffer += sprintf(buffer, ",%d", dist[d]);
+      *bufferPtr += sprintf(*bufferPtr, ",%d", dist[d]);
     }
   }
 }
@@ -242,7 +242,7 @@ void rainAddCount() {
   ++rainCount;
 }
 
-void printPrecipitation(char* buffer, bool clearValue) {
+void printPrecipitation(char** bufferPtr, bool clearValue) {
   unsigned int count;
   if (clearValue) {
     count = rainCount;
@@ -252,14 +252,14 @@ void printPrecipitation(char* buffer, bool clearValue) {
   }
 
   float precipitation = count * RAIN_BUCKET_COEF;
-  if (!buffer) {
+  if (!bufferPtr) {
     Serial.print("Precipitation ");
     Serial.print(count);
     Serial.print(" ");
     Serial.println(precipitation);
   } else {
-    appendComma(&buffer);
-    appendFloat(&buffer, precipitation);
+    appendComma(bufferPtr);
+    appendFloat(bufferPtr, precipitation);
   }
 }
 
@@ -267,7 +267,7 @@ void setupBme() {
   bme.begin(0x76);
 }
 
-void printBmeData(char* buffer) {
+void printBmeData(char** bufferPtr) {
   float temperature = bme.readTemperature();
   bool isBroken = temperature != temperature || temperature < -140.0f;
   if (isBroken) {
@@ -279,7 +279,7 @@ void printBmeData(char* buffer) {
   float pressure = bme.readPressure() / 100.0F;
   int humidity = bme.readHumidity();
 
-  if (!buffer) {
+  if (!bufferPtr) {
     Serial.print("BME280 ");
     Serial.print(temperature);
     Serial.print(" ");
@@ -287,11 +287,10 @@ void printBmeData(char* buffer) {
     Serial.print(" ");
     Serial.println(humidity);
   } else {
-    appendComma(&buffer);    
-    appendFloat(&buffer, temperature);
-    appendComma(&buffer);    
-    appendFloat(&buffer, pressure);
-        
-    buffer += sprintf(buffer, ",%d", humidity);
+    appendComma(bufferPtr);    
+    appendFloat(bufferPtr, temperature);
+    appendComma(bufferPtr);    
+    appendFloat(bufferPtr, pressure);        
+    *bufferPtr += sprintf(*bufferPtr, ",%d", humidity);
   }
 }

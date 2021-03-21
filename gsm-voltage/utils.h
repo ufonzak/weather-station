@@ -1,3 +1,5 @@
+typedef unsigned int siz_t;
+
 bool startsWith(const char *str, const char *prefix)
 {
   return strncmp(prefix, str, strlen(prefix)) == 0;
@@ -18,19 +20,22 @@ void trimSpaces(char* line) {
   }
 }
 
-size_t serial1ReadUntil(char until, char* buffer, size_t bufferSize) {
-  wdt_reset();
-  size_t read = Serial1.readBytesUntil(until, buffer, bufferSize - 1);
+siz_t serial1ReadUntil(char until, char* buffer, siz_t bufferSize, int timeout) {
+  siz_t read;
+  do {
+    wdt_reset();
+    read = Serial1.readBytesUntil(until, buffer, bufferSize - 1);
+  } while(read == 0 && --timeout > 0);
   buffer[read] = '\0';
   return read;
 }
 
-inline size_t serial1ReadLine(char* buffer, size_t bufferSize) {
-  return serial1ReadUntil('\n', buffer, bufferSize);
+inline siz_t serial1ReadLine(char* buffer, siz_t bufferSize, int timeout) {
+  return serial1ReadUntil('\n', buffer, bufferSize, timeout);
 }
 
-size_t serialReadLine(char* buffer, size_t bufferSize) {
-  size_t read = Serial.readBytesUntil('\n', buffer, bufferSize - 1);
+siz_t serialReadLine(char* buffer, siz_t bufferSize) {
+  siz_t read = Serial.readBytesUntil('\n', buffer, bufferSize - 1);
   buffer[read] = '\0';
   return read;
 }
