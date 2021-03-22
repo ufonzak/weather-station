@@ -56,7 +56,7 @@ time,
 measure_name as name,
 measure_value::double as value
 FROM ${environment.databaseName}.records
-WHERE time > ago(${range})
+WHERE station = 'woodside' AND time > ago(${range})
 AND measure_name = '${measurement}'
 ORDER BY time
       `.trim();

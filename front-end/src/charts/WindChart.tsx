@@ -96,7 +96,7 @@ export class WindChart extends React.Component<Props> {
   }
 
   static timeExpressions = {
-    '1d': 'time',
+    '1d': 'bin(time, 1h)',
     '2d': 'bin(time, 2h)',
     '7d': 'bin(time, 4h)',
   };
@@ -111,7 +111,7 @@ ${timeExpression} as time,
 measure_name as name,
 AVG(measure_value::double) as value
 FROM ${environment.databaseName}.records
-WHERE time > ago(${range})
+WHERE  station = 'woodside' AND time > ago(${range})
 AND measure_name IN (${measures.map(measure => `'${measure}'`).join()})
 GROUP BY ${timeExpression}, measure_name
 ORDER BY ${timeExpression}

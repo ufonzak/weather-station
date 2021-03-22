@@ -24,7 +24,7 @@ time,
 measure_name,
 measure_value::double as value
 FROM ${environment.databaseName}.records
-WHERE time > ago(12h)
+WHERE station = 'woodside' AND time > ago(12h)
 AND measure_name IN (${measures.map(measure => `'${measure}'`).join()})
 ORDER BY time DESC, measure_name ASC
 LIMIT ${measures.length * RECORDS_BACK}
