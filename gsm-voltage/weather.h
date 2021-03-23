@@ -121,22 +121,22 @@ void anemoAddCount()
 
 int readDirection() {
   int voltage = analogRead(DIRECTION_PIN);
-  if (abs(voltage - 235) < WIND_DIR_MAX_VOLTAGE_DEVIATION || abs(voltage - 318) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
-    return 4;
-  } else if (abs(voltage - 134) < WIND_DIR_MAX_VOLTAGE_DEVIATION || abs(voltage - 194) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
-    return 5;
-  } else if (abs(voltage - 77) < WIND_DIR_MAX_VOLTAGE_DEVIATION || abs(voltage - 422) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
-    return 6;
-  } else if (abs(voltage - 390) < WIND_DIR_MAX_VOLTAGE_DEVIATION || abs(voltage - 777) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
-    return 7;
-  } else if(abs(voltage - 734) < WIND_DIR_MAX_VOLTAGE_DEVIATION || abs(voltage - 897) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
+  if (abs(voltage - 734) < WIND_DIR_MAX_VOLTAGE_DEVIATION || abs(voltage - 897) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
     return 0;
-  } else if (abs(voltage - 838) < WIND_DIR_MAX_VOLTAGE_DEVIATION || abs(voltage - 957) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
+  } else if (abs(voltage - 390) < WIND_DIR_MAX_VOLTAGE_DEVIATION || abs(voltage - 777) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
     return 1;
-  } else if (abs(voltage - 930) < WIND_DIR_MAX_VOLTAGE_DEVIATION || abs(voltage - 940) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
+  } else if (abs(voltage - 77) < WIND_DIR_MAX_VOLTAGE_DEVIATION || abs(voltage - 422) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
     return 2;
-  } else if (abs(voltage - 560) < WIND_DIR_MAX_VOLTAGE_DEVIATION || abs(voltage - 615) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
+  } else if (abs(voltage - 134) < WIND_DIR_MAX_VOLTAGE_DEVIATION || abs(voltage - 194) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
     return 3;
+  } else if (abs(voltage - 235) < WIND_DIR_MAX_VOLTAGE_DEVIATION || abs(voltage - 318) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
+    return 4;
+  } else if (abs(voltage - 560) < WIND_DIR_MAX_VOLTAGE_DEVIATION || abs(voltage - 615) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
+    return 5;
+  } else if (abs(voltage - 930) < WIND_DIR_MAX_VOLTAGE_DEVIATION || abs(voltage - 940) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
+    return 6;
+  } else if (abs(voltage - 838) < WIND_DIR_MAX_VOLTAGE_DEVIATION || abs(voltage - 957) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
+    return 7;
   }
   return -1;
 }
@@ -287,10 +287,10 @@ void printBmeData(char** bufferPtr) {
     Serial.print(" ");
     Serial.println(humidity);
   } else {
-    appendComma(bufferPtr);    
+    appendComma(bufferPtr);
     appendFloat(bufferPtr, temperature);
-    appendComma(bufferPtr);    
-    appendFloat(bufferPtr, pressure);        
+    appendComma(bufferPtr);
+    appendFloat(bufferPtr, pressure);
     *bufferPtr += sprintf(*bufferPtr, ",%d", humidity);
   }
 }
