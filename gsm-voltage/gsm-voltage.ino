@@ -213,7 +213,7 @@ bool sendData() {
   char dataBuffer[192];
   siz_t totalLength = prepareData(dataBuffer, buffer, sizeof(buffer));
 
-  if (!waitForRegistration(60, buffer, sizeof(buffer))) {
+  if (!waitForRegistration(30, buffer, sizeof(buffer))) {
     return false;
   }
 
@@ -230,7 +230,7 @@ bool sendData() {
     return false;
   }
 
-  if (!setCmd("AT+SAPBR=1,1", 5)) {
+  if (!setCmd("AT+SAPBR=1,1", 10)) {
     return false;
   }
   if (!waitForGprs(30, buffer, sizeof(buffer))) {
@@ -383,6 +383,7 @@ void setup()
 
 #define MIN_GSM_VOLTAGE (3650) // 30%
 #define SLEEP_VOLTAGE (3570)   // 20%
+#define SLEEP_ERR_DELAY (10)
 
 void loop()
 {
@@ -430,12 +431,7 @@ void loop()
     resetBatteryTemperature();
   }
 
-  long cycleLength = millis() - cycleStart;
-  if (cycleLength >= 1000) {
-    return;
-  }
-
-  int leftOfSecond = 1000 - (int)cycleLength;
+  int leftOfSecond = 1000 - (int)(millis() % 1000) + SLEEP_ERR_DELAY;
 
   if (cycleStartSecond % 10 == 0 && leftOfSecond > BREATHE_LED) {
     digitalWrite(LED_BUILTIN, HIGH);

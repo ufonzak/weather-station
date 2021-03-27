@@ -69,6 +69,7 @@ bool turnOff() {
 bool readReply(char* reply, siz_t bufferSize, int timeout) {
   siz_t read = serial1ReadLine(reply, bufferSize, timeout);
   if (read == 0) {
+    Serial.println("Timeout");
     return false;
   }
   if (strcmp(reply, "\r") != 0) {
@@ -188,7 +189,7 @@ bool waitForRegistration(int secondsToWait, char* buffer, siz_t bufferSize) {
       Serial.println("On Network");
       return true;
     }
-    
+
     safeDelay(1000);
   }
   return false;
