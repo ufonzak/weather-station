@@ -3,8 +3,7 @@
 
 #define RAIN_PIN (16)
 #define RAIN_BUCKET_COEF (0.2794)
-volatile unsigned int rainCount = 0;   
-// #define DEBUG
+volatile unsigned int rainCount = 0;
 
 typedef struct {
   byte avg;
@@ -16,13 +15,13 @@ AnemoSample anemoSamples[ANEMO_SAMPLES_COUNT];
 unsigned int anemoSamplesIndex = -1;
 
 #define ANEMO_MEASURING_PERIOD (60000)
-volatile unsigned int anemoCount = 0;   
+volatile unsigned int anemoCount = 0;
 unsigned long lastAnemoMeasurement;
 
 #define ANEMO_GUST_MEASURING_PERIOD (5000) // must divide ANEMO_MEASURING_PERIOD without remainder
 unsigned int anemoLastGustCount;
 unsigned long lastAnemoGustMeasurement;
-byte anemoMaxGust;   
+byte anemoMaxGust;
 
 void anemoAddCount();
 void rainAddCount();
@@ -41,14 +40,14 @@ void setupBme();
 void setupWeather() {
   setupBme();
 
-  pinMode(ANEMO_PIN, INPUT);     
-  pinMode(DIRECTION_PIN, INPUT);  
+  pinMode(ANEMO_PIN, INPUT);
+  pinMode(DIRECTION_PIN, INPUT);
 
   lastAnemoMeasurement = millis();
   lastAnemoGustMeasurement = lastAnemoMeasurement;
   resetAnemoGust();
   PCintPort::attachInterrupt(ANEMO_PIN, anemoAddCount, RISING);
-  
+
   PCintPort::attachInterrupt(RAIN_PIN, rainAddCount, RISING);
 
   for (int i = 0; i < DIRECTION_DISTRIBUTION_SAMPLES; i++) {
@@ -59,7 +58,7 @@ void setupWeather() {
 }
 
 void measureAnemoGust(unsigned long now) {
-  long measuringPeriod = now - lastAnemoGustMeasurement;  
+  long measuringPeriod = now - lastAnemoGustMeasurement;
   if (measuringPeriod < ANEMO_GUST_MEASURING_PERIOD) {
     return;
   }
@@ -70,35 +69,35 @@ void measureAnemoGust(unsigned long now) {
   anemoLastGustCount = count;
 
   byte gustSpeed = (byte)(2.41f * ((float)gustCount / ((float)measuringPeriod / 1000.f)));
-  
+
   if (gustSpeed > anemoMaxGust) {
     anemoMaxGust = gustSpeed;
   }
 }
 
 void resetAnemoGust() {
-  anemoLastGustCount = 0; 
+  anemoLastGustCount = 0;
   anemoMaxGust = 0;
 }
 
 void measureAnemo() {
   unsigned long now = millis();
   measureAnemoGust(now);
-  
+
   long measuringPeriod = now - lastAnemoMeasurement;
   if (measuringPeriod < ANEMO_MEASURING_PERIOD) {
     return;
   }
-  
+
   unsigned int count = anemoCount;
   anemoCount = 0;
   lastAnemoMeasurement = now;
 
   byte speedAvg = (byte)(2.41f * ((float)count / ((float)measuringPeriod / 1000.f)));
-  
+
   byte maxGust = anemoMaxGust;
   resetAnemoGust();
-  
+
   if (anemoSamplesIndex < 0) {
     for (int i = 0; i < ANEMO_SAMPLES_COUNT; i++) {
       anemoSamples[i].avg = speedAvg;
@@ -122,22 +121,22 @@ void anemoAddCount()
 
 int readDirection() {
   int voltage = analogRead(DIRECTION_PIN);
-  if (abs(voltage - 235) < WIND_DIR_MAX_VOLTAGE_DEVIATION || abs(voltage - 318) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
+  if (abs(voltage - 734) < WIND_DIR_MAX_VOLTAGE_DEVIATION || abs(voltage - 897) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
     return 0;
-  } else if (abs(voltage - 134) < WIND_DIR_MAX_VOLTAGE_DEVIATION || abs(voltage - 194) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
-    return 1;    
-  } else if (abs(voltage - 77) < WIND_DIR_MAX_VOLTAGE_DEVIATION || abs(voltage - 422) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
-    return 2;    
   } else if (abs(voltage - 390) < WIND_DIR_MAX_VOLTAGE_DEVIATION || abs(voltage - 777) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
-    return 3;    
-  } else if(abs(voltage - 734) < WIND_DIR_MAX_VOLTAGE_DEVIATION || abs(voltage - 897) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
-    return 4;    
-  } else if (abs(voltage - 838) < WIND_DIR_MAX_VOLTAGE_DEVIATION || abs(voltage - 957) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
-    return 5;    
-  } else if (abs(voltage - 930) < WIND_DIR_MAX_VOLTAGE_DEVIATION || abs(voltage - 940) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
-    return 6;    
+    return 1;
+  } else if (abs(voltage - 77) < WIND_DIR_MAX_VOLTAGE_DEVIATION || abs(voltage - 422) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
+    return 2;
+  } else if (abs(voltage - 134) < WIND_DIR_MAX_VOLTAGE_DEVIATION || abs(voltage - 194) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
+    return 3;
+  } else if (abs(voltage - 235) < WIND_DIR_MAX_VOLTAGE_DEVIATION || abs(voltage - 318) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
+    return 4;
   } else if (abs(voltage - 560) < WIND_DIR_MAX_VOLTAGE_DEVIATION || abs(voltage - 615) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
-    return 7;    
+    return 5;
+  } else if (abs(voltage - 930) < WIND_DIR_MAX_VOLTAGE_DEVIATION || abs(voltage - 940) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
+    return 6;
+  } else if (abs(voltage - 838) < WIND_DIR_MAX_VOLTAGE_DEVIATION || abs(voltage - 957) < WIND_DIR_MAX_VOLTAGE_DEVIATION) {
+    return 7;
   }
   return -1;
 }
@@ -146,20 +145,20 @@ void measureDirection()  {
   if (cycleStartSecond % 2 != 0) {
     return;
   }
-  
+
   int direction = readDirection();
 #ifdef DEBUG
   Serial.print("Direction ");
   Serial.println(direction);
 #endif
-  
+
   if (direction < 0) {
     return;
   }
 
   int secondOfHour = cycleStartSecond % 3600;
   int sampleIndex = secondOfHour / (3600 / DIRECTION_DISTRIBUTION_SAMPLES);
-  
+
   if (sampleIndex != lastDirectionIndex) {
     for (int i = 0; i < DIRECTION_COUNT; i++) {
       directionDistribution[sampleIndex][i] = 0;
@@ -170,7 +169,7 @@ void measureDirection()  {
   directionDistribution[sampleIndex][direction]++;
 }
 
-void printAnemo(bool debug, int samplesBack) {
+void printAnemo(char** bufferPtr, int samplesBack) {
   unsigned int averageSpeed = 0;
   byte maxGust = 0;
   for (int i = 0; i < samplesBack; i++) {
@@ -189,7 +188,7 @@ void printAnemo(bool debug, int samplesBack) {
   }
   float stdDevSpeed = sqrt(stdDevSum / (samplesBack - 1.f));
 
-  if (debug) {
+  if (!bufferPtr) {
     Serial.print("Anemo stats ");
     Serial.print(samplesBack);
     Serial.print(" ");
@@ -200,19 +199,16 @@ void printAnemo(bool debug, int samplesBack) {
     Serial.print(maxGust);
     Serial.println();
   } else {
-    Serial1.print(",");
-    Serial1.print(averageSpeed);
-    Serial1.print(",");
-    Serial1.print(stdDevSpeed);
-    Serial1.print(",");
-    Serial1.print(maxGust);
+    *bufferPtr += sprintf(*bufferPtr, ",%d,", averageSpeed);
+    appendFloat(bufferPtr, stdDevSpeed);
+    *bufferPtr += sprintf(*bufferPtr, ",%d", maxGust);
   }
 }
 
-void printDirection(bool debug, int samplesBack) {
+void printDirection(char** bufferPtr, int samplesBack) {
   unsigned long dist[DIRECTION_DISTRIBUTION_SAMPLES];
   unsigned long total = 0;
-  
+
   for (int d = 0; d < DIRECTION_COUNT; d++) {
     dist[d] = 0;
     for (int i = 0; i < samplesBack; i++) {
@@ -226,8 +222,8 @@ void printDirection(bool debug, int samplesBack) {
       dist[d] = 100 * dist[d] / total;
     }
   }
-  
-  if (debug) {
+
+  if (!bufferPtr) {
     Serial.print("Direction dist ");
     Serial.print(samplesBack);
     for (int d = 0; d < DIRECTION_COUNT; d++) {
@@ -237,9 +233,8 @@ void printDirection(bool debug, int samplesBack) {
     Serial.println();
   } else {
     for (int d = 0; d < DIRECTION_COUNT; d++) {
-      Serial1.print(",");
-      Serial1.print(dist[d]);
-    }    
+      *bufferPtr += sprintf(*bufferPtr, ",%d", dist[d]);
+    }
   }
 }
 
@@ -247,7 +242,7 @@ void rainAddCount() {
   ++rainCount;
 }
 
-void printPrecipitation(bool debug, bool clearValue) {
+void printPrecipitation(char** bufferPtr, bool clearValue) {
   unsigned int count;
   if (clearValue) {
     count = rainCount;
@@ -257,14 +252,14 @@ void printPrecipitation(bool debug, bool clearValue) {
   }
 
   float precipitation = count * RAIN_BUCKET_COEF;
-  if (debug) {
+  if (!bufferPtr) {
     Serial.print("Precipitation ");
     Serial.print(count);
     Serial.print(" ");
     Serial.println(precipitation);
   } else {
-    Serial1.print(",");
-    Serial1.print(precipitation);
+    appendComma(bufferPtr);
+    appendFloat(bufferPtr, precipitation);
   }
 }
 
@@ -272,7 +267,7 @@ void setupBme() {
   bme.begin(0x76);
 }
 
-void printBmeData(bool debug) {
+void printBmeData(char** bufferPtr) {
   float temperature = bme.readTemperature();
   bool isBroken = temperature != temperature || temperature < -140.0f;
   if (isBroken) {
@@ -280,11 +275,11 @@ void printBmeData(bool debug) {
     setupBme();
     temperature = bme.readTemperature();
   }
-  
+
   float pressure = bme.readPressure() / 100.0F;
   int humidity = bme.readHumidity();
-  
-  if (debug) {
+
+  if (!bufferPtr) {
     Serial.print("BME280 ");
     Serial.print(temperature);
     Serial.print(" ");
@@ -292,11 +287,10 @@ void printBmeData(bool debug) {
     Serial.print(" ");
     Serial.println(humidity);
   } else {
-    Serial1.print(",");
-    Serial1.print(temperature);
-    Serial1.print(",");
-    Serial1.print(pressure);
-    Serial1.print(",");
-    Serial1.print(humidity);
+    appendComma(bufferPtr);
+    appendFloat(bufferPtr, temperature);
+    appendComma(bufferPtr);
+    appendFloat(bufferPtr, pressure);
+    *bufferPtr += sprintf(*bufferPtr, ",%d", humidity);
   }
 }
