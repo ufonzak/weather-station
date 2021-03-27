@@ -233,7 +233,7 @@ bool sendData() {
   if (!setCmd("AT+SAPBR=1,1", 5)) {
     return false;
   }
-  if (!waitForGprs(20, buffer, sizeof(buffer))) {
+  if (!waitForGprs(30, buffer, sizeof(buffer))) {
     return false;
   }
 
@@ -430,7 +430,12 @@ void loop()
     resetBatteryTemperature();
   }
 
-  int leftOfSecond = 1000 - (int)(millis() - cycleStart);
+  long cycleLength = millis() - cycleStart;
+  if (cycleLength >= 1000) {
+    return;
+  }
+
+  int leftOfSecond = 1000 - (int)cycleLength;
 
   if (cycleStartSecond % 10 == 0 && leftOfSecond > BREATHE_LED) {
     digitalWrite(LED_BUILTIN, HIGH);
