@@ -12,6 +12,7 @@ import { ChartLoader } from './ChartLoader';
 
 const measures = _.range(8).map(i => `wind_direction${i}_1h`);
 const COLORS = [
+  '#F55A00',
   '#F51818',
   '#F50CF5',
   '#0C21F5',
@@ -19,7 +20,6 @@ const COLORS = [
   '#18F557',
   '#D6F518',
   '#F5C518',
-  '#F55A00',
 ];
 
 interface Point extends Record<WindDirection, Number> {
@@ -77,7 +77,7 @@ export class WindDirectionChart extends React.Component<Props> {
 
     const query = `
 SELECT
-time,
+(time - 30m) as time,
 measure_name as name,
 measure_value::double as value
 FROM ${environment.databaseName}.records
