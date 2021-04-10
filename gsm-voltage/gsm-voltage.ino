@@ -44,6 +44,7 @@ unsigned long cycleStartSecond;
 #include "weather.h"
 
 bool chargingDisabled = false;
+bool cycleReady = true;
 
 unsigned int sendFailCount = 0;
 
@@ -341,14 +342,22 @@ void batteryManagement() {
 
   if (!chargingDisabled) {
     bool batteryCharged = digitalRead(IS_CHARGED_PIN) == HIGH && batteryVoltage >= 4050;
+    if (batteryCharged) {
+      cycleReady = false;
+    }
     if (batteryCharged || !tempOk) {
       chargingDisabled = true;
       digitalWrite(CHARGING_DISABLED_PIN, HIGH);
     }
   } else if (chargingDisabled) {
-    // reset on low battery or during night
-    bool chargingReset = batteryVoltage < 3800 || (batteryVoltage < 4000 && getSolarVoltageAvgInt() < 2000);
-    if (chargingReset && tempOkHyster) {
+    if (!cycleReady) {
+      // reset on low battery or during night
+      bool chargingReset = batteryVoltage < 3800 || (batteryVoltage < 4000 && getSolarVoltageAvgInt() < 2000);
+      if (chargingReset) {
+        cycleReady = true;
+      }
+    }
+    if (cycleReady && tempOkHyster) {
       chargingDisabled = false;
       digitalWrite(CHARGING_DISABLED_PIN, LOW);
     }
