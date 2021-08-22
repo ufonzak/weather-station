@@ -18,6 +18,7 @@ unsigned int anemoSamplesIndex = -1;
 volatile unsigned int anemoCount = 0;
 unsigned long lastAnemoMeasurement;
 
+#define ANEMO_COEF (2.41f) // km/h per revolution per second
 #define ANEMO_GUST_MEASURING_PERIOD (5000) // must divide ANEMO_MEASURING_PERIOD without remainder
 unsigned int anemoLastGustCount;
 unsigned long lastAnemoGustMeasurement;
@@ -68,7 +69,7 @@ void measureAnemoGust(unsigned long now) {
   unsigned int gustCount = count - anemoLastGustCount;
   anemoLastGustCount = count;
 
-  byte gustSpeed = (byte)(2.41f * ((float)gustCount / ((float)measuringPeriod / 1000.f)));
+  byte gustSpeed = (byte)(ANEMO_COEF * ((float)gustCount / ((float)measuringPeriod / 1000.f)));
 
   if (gustSpeed > anemoMaxGust) {
     anemoMaxGust = gustSpeed;
@@ -93,7 +94,7 @@ void measureAnemo() {
   anemoCount = 0;
   lastAnemoMeasurement = now;
 
-  byte speedAvg = (byte)(2.41f * ((float)count / ((float)measuringPeriod / 1000.f)));
+  byte speedAvg = (byte)(ANEMO_COEF * ((float)count / ((float)measuringPeriod / 1000.f)));
 
   byte maxGust = anemoMaxGust;
   resetAnemoGust();
