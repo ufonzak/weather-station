@@ -37,8 +37,8 @@ const CustomTooltip: React.FC<TooltipProps<number, string>> = ({ active, payload
   return (
     <div className="custom-tooltip">
       <div>{moment(point.time).format('llll')}</div>
-      <div>Average: {point.avg} km/h</div>
-      <div>Gust: {point.max} km/h</div>
+      <div>Average: {Math.ceil(point.avg)} km/h</div>
+      <div>Gust: {Math.ceil(point.max)} km/h</div>
       <div>Direction: {WIND_DIRECTIONS[point.direction]}</div>
     </div>
   );
@@ -46,13 +46,14 @@ const CustomTooltip: React.FC<TooltipProps<number, string>> = ({ active, payload
 
 const ARROW_SIZE = 30;
 
-const Direction: React.FC<{ payload: Point } & DotProps> = ({ cx, cy, payload, key }) =>
-  (<svg key={key} x={cx - ARROW_SIZE / 2} y={cy - ARROW_SIZE / 2} width={ARROW_SIZE} height={ARROW_SIZE} fill="grey" viewBox="0 0 40 40">
+const Direction: React.FC<{ payload: Point } & DotProps> = ({ cx, cy, payload, key }) => (
+  <svg key={key} x={cx - ARROW_SIZE / 2} y={cy - ARROW_SIZE / 2} width={ARROW_SIZE} height={ARROW_SIZE} fill="#505050" viewBox="0 0 40 40">
     <g transform={`rotate(${90 + payload.direction * 45} 20 20)`}>
       <path transform={`translate(7 0)`} d="M16.9,10.9c-0.6-0.6-1.7-0.6-2.3,0c-0.6,0.6-0.6,1.7,0,2.3l5.1,5.2H1.6C0.7,18.4,0,19.1,0,20
         c0,0.9,0.7,1.6,1.6,1.6h18.1l-5.2,5.2c-0.6,0.6-0.6,1.7,0,2.3c0.7,0.6,1.7,0.6,2.3,0L26,20l0,0L16.9,10.9z"/>
     </g>
-  </svg>);
+  </svg>
+);
 
 export class WindChart extends React.Component<Props> {
   transformData(data: Query.Rows): Point[] { // TODO: memoize
@@ -64,7 +65,7 @@ export class WindChart extends React.Component<Props> {
         return {
           time: moment.utc(records[0]['time'].ScalarValue).valueOf(),
           avg: findMeasure(records, 'wind_speed_1h_avg'),
-          max: findMeasure(records, 'wind_speed_1h_max'),
+          max: findMeasure(records, 'wind_speed_1h_max', 'value_max'),
           direction: directionIndex,
         };
       });
@@ -100,21 +101,32 @@ export class WindChart extends React.Component<Props> {
     '2d': 'bin(time, 2h)',
     '7d': 'bin(time, 4h)',
   };
+  static binCorrections = {
+    '1d': '',
+    '2d': ' + 1h',
+    '7d': ' + 2h',
+  };
 
   render() {
     const { range, refreshKey } = this.props;
 
     const timeExpression = WindChart.timeExpressions[range];
+    const binCorrection = WindChart.binCorrections[range];
     const query = `
-SELECT
-${timeExpression} as time,
-measure_name as name,
-AVG(measure_value::double) as value
-FROM ${environment.databaseName}.records
-WHERE time > ago(${range})
-AND measure_name IN (${measures.map(measure => `'${measure}'`).join()})
-GROUP BY ${timeExpression}, measure_name
-ORDER BY ${timeExpression}
+    WITH base_data AS (
+      SELECT
+      array_agg(time)[1] - 30m as time,
+      measure_name as name,
+      array_agg(measure_value::double)[1] as value
+      FROM ${environment.databaseName}.records
+      WHERE station = 'woodside' AND time > ago(${range})
+      AND measure_name IN (${measures.map(measure => `'${measure}'`).join()})
+      GROUP BY bin(time, 1h), measure_name
+    )
+    SELECT ${timeExpression}${binCorrection} as time, name, avg(value) as value, max(value) as value_max
+    FROM base_data
+    GROUP BY ${timeExpression}, name
+    ORDER BY ${timeExpression}
       `.trim();
 
     return <Query query={query} refreshKey={refreshKey}>{this.renderData.bind(this)}</Query>;
