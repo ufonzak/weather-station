@@ -2,10 +2,11 @@ import React from 'react';
 import _ from 'lodash';
 import moment from 'moment';
 import { CartesianGrid, DotProps, Legend, Line, LineChart, ResponsiveContainer, Tooltip, TooltipProps, YAxis } from 'recharts';
+import { RouteComponentProps, withRouter } from 'react-router-dom';
 
 import { environment } from '../environment';
 import { Query } from '../query';
-import { WIND_DIRECTIONS } from '../utils';
+import { getDataKey, WIND_DIRECTIONS } from '../utils';
 import { findMeasure, Range } from './utils';
 import { timeAxis } from './TimeAxis';
 import { ChartLoader } from './ChartLoader';
@@ -23,7 +24,7 @@ interface Point {
   direction: number;
 }
 
-interface Props {
+interface Props extends RouteComponentProps<{ site: string }> {
   refreshKey?: number | string;
   range: Range;
 }
@@ -55,7 +56,7 @@ const Direction: React.FC<{ payload: Point } & DotProps> = ({ cx, cy, payload, k
   </svg>
 );
 
-export class WindChart extends React.Component<Props> {
+class WindChartBase extends React.Component<Props> {
   transformData(data: Query.Rows): Point[] { // TODO: memoize
     const points = _.values(_.groupBy(data, record => record['time'].ScalarValue))
       .map((records): Point => {
@@ -83,7 +84,7 @@ export class WindChart extends React.Component<Props> {
           {timeAxis(range)}
           <YAxis domain={[0, 'auto']} tickCount={8} width={30}/>
           <Tooltip content={CustomTooltip} />
-          <Legend formatter={key => WindChart.labels[key]}/>
+          <Legend formatter={key => WindChartBase.labels[key]}/>
           <Line type="linear" dataKey="avg" stroke="#8884d8" dot={Direction} />
           <Line type="linear" dataKey="max" stroke="#F5CD00" dot={null} />
         </LineChart>
@@ -108,10 +109,10 @@ export class WindChart extends React.Component<Props> {
   };
 
   render() {
-    const { range, refreshKey } = this.props;
+    const { range, refreshKey, match } = this.props;
 
-    const timeExpression = WindChart.timeExpressions[range];
-    const binCorrection = WindChart.binCorrections[range];
+    const timeExpression = WindChartBase.timeExpressions[range];
+    const binCorrection = WindChartBase.binCorrections[range];
     const query = `
     WITH base_data AS (
       SELECT
@@ -119,7 +120,7 @@ export class WindChart extends React.Component<Props> {
       measure_name as name,
       array_agg(measure_value::double)[1] as value
       FROM ${environment.databaseName}.records
-      WHERE station = 'woodside' AND time > ago(${range})
+      WHERE station = '${getDataKey(match)}' AND time > ago(${range})
       AND measure_name IN (${measures.map(measure => `'${measure}'`).join()})
       GROUP BY bin(time, 1h), measure_name
     )
@@ -132,3 +133,5 @@ export class WindChart extends React.Component<Props> {
     return <Query query={query} refreshKey={refreshKey}>{this.renderData.bind(this)}</Query>;
   }
 }
+
+export const WindChart = withRouter(WindChartBase);

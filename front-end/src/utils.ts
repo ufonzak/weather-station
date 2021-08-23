@@ -28,3 +28,10 @@ export const WIND_DIRECTIONS: WindDirection[] = [
   'W',
   'NW',
 ];
+
+export const getDataKey = (match: { params: { site: string } }) => {
+  switch(match.params.site) {
+    case 'bridal-falls-lz': return 'pemberton';
+    default: return match.params.site || 'unknown';
+  }
+};

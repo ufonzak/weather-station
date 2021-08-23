@@ -4,8 +4,9 @@ import moment from 'moment';
 import { environment } from '../environment';
 import { Query } from '../query';
 import { WindDirection } from './WindDirection';
-import { WIND_DIRECTIONS } from '../utils';
+import { getDataKey, WIND_DIRECTIONS } from '../utils';
 import { Loader } from '../components';
+import { RouteComponentProps, withRouter } from 'react-router-dom';
 
 const RECORDS_BACK = 3;
 
@@ -17,18 +18,6 @@ const measures = [
   'humidity',
   ..._.range(8).map(i => `wind_direction${i}_10m`),
 ];
-
-const query = `
-SELECT
-time,
-measure_name,
-measure_value::double as value
-FROM ${environment.databaseName}.records
-WHERE station = 'woodside' AND time > ago(12h)
-AND measure_name IN (${measures.map(measure => `'${measure}'`).join()})
-ORDER BY time DESC, measure_name ASC
-LIMIT ${measures.length * RECORDS_BACK}
-`
 
 function getRecord(data: Query.Rows, measure: string): number {
   const record = data.find(record => record['measure_name'].ScalarValue === measure);
@@ -55,7 +44,7 @@ const Age: React.FC<{ row: Query.Row }> = ({ row }) => {
 }
 
  // TODO: render every minute
-export class Current extends React.Component {
+export class CurrentBase extends React.Component<RouteComponentProps<{ site: string }>> {
   private renderInterval: ReturnType<typeof setInterval>;
 
   componentDidMount() {
@@ -128,8 +117,22 @@ export class Current extends React.Component {
   }
 
   render() {
-    return <div className="current">
+    const query = `
+SELECT
+time,
+measure_name,
+measure_value::double as value
+FROM ${environment.databaseName}.records
+WHERE station = '${getDataKey(this.props.match)}' AND time > ago(12h)
+AND measure_name IN (${measures.map(measure => `'${measure}'`).join()})
+ORDER BY time DESC, measure_name ASC
+LIMIT ${measures.length * RECORDS_BACK}
+    `.trim();
+
+    return <div className="current mt-4">
       <Query query={query}>{this.renderData.bind(this)}</Query>
     </div>;
   }
 }
+
+export const Current = withRouter(CurrentBase);

@@ -2,10 +2,11 @@ import React from 'react';
 import _ from 'lodash';
 import moment from 'moment';
 import { Area, AreaChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, YAxis } from 'recharts';
+import { RouteComponentProps, withRouter } from 'react-router-dom';
 
 import { environment } from '../environment';
 import { Query } from '../query';
-import { WindDirection, WIND_DIRECTIONS } from '../utils';
+import { getDataKey, WindDirection, WIND_DIRECTIONS } from '../utils';
 import { Range } from './utils';
 import { timeAxis } from './TimeAxis';
 import { ChartLoader } from './ChartLoader';
@@ -26,12 +27,12 @@ interface Point extends Record<WindDirection, Number> {
   time: number;
 }
 
-interface Props {
+interface Props extends RouteComponentProps<{ site: string }> {
   refreshKey?: number | string;
   range: Range;
 }
 
-export class WindDirectionChart extends React.Component<Props> {
+export class WindDirectionChartBase extends React.Component<Props> {
   transformData(data: Query.Rows): Point[] { // TODO: memoize
     const points = _.values(_.groupBy(data, record => record['time'].ScalarValue))
       .map((records): Point => {
@@ -73,7 +74,7 @@ export class WindDirectionChart extends React.Component<Props> {
   }
 
   render() {
-    const { range, refreshKey } = this.props;
+    const { range, refreshKey, match } = this.props;
 
     const query = `
 SELECT
@@ -81,7 +82,7 @@ SELECT
 measure_name as name,
 measure_value::double as value
 FROM ${environment.databaseName}.records
-WHERE station = 'woodside' AND time > ago(${range})
+WHERE station = '${getDataKey(match)}' AND time > ago(${range})
 AND measure_name IN (${measures.map(measure => `'${measure}'`).join()})
 ORDER BY time
       `.trim();
@@ -89,3 +90,5 @@ ORDER BY time
     return <Query query={query} refreshKey={refreshKey}>{this.renderData.bind(this)}</Query>;
   }
 }
+
+export const WindDirectionChart = withRouter(WindDirectionChartBase);
