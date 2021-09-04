@@ -1,6 +1,6 @@
 import React from 'react';
 import moment from 'moment';
-import { RouteComponentProps, withRouter } from 'react-router-dom';
+import { withRouter } from 'react-router-dom';
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, YAxis } from 'recharts';
 
 import { environment } from '../environment';
@@ -8,14 +8,14 @@ import { Query } from '../query';
 import { Range } from './utils';
 import { timeAxis } from './TimeAxis';
 import { ChartLoader } from './ChartLoader';
-import { getDataKey } from '../utils';
+import { getDataKey, TopRouteProps } from '../utils';
 
 interface Point {
   time: number;
   value: number;
 }
 
-interface Props extends RouteComponentProps<{ site: string }> {
+interface Props extends TopRouteProps {
   refreshKey?: number | string;
   measurement: string;
   range: Range;

@@ -2,11 +2,11 @@ import React from 'react';
 import _ from 'lodash';
 import moment from 'moment';
 import { Area, AreaChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, YAxis } from 'recharts';
-import { RouteComponentProps, withRouter } from 'react-router-dom';
+import { withRouter } from 'react-router-dom';
 
 import { environment } from '../environment';
 import { Query } from '../query';
-import { getDataKey, WindDirection, WIND_DIRECTIONS } from '../utils';
+import { getDataKey, WindDirection, WIND_DIRECTIONS, TopRouteProps } from '../utils';
 import { Range } from './utils';
 import { timeAxis } from './TimeAxis';
 import { ChartLoader } from './ChartLoader';
@@ -27,7 +27,7 @@ interface Point extends Record<WindDirection, Number> {
   time: number;
 }
 
-interface Props extends RouteComponentProps<{ site: string }> {
+interface Props extends TopRouteProps {
   refreshKey?: number | string;
   range: Range;
 }

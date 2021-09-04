@@ -4,9 +4,9 @@ import moment from 'moment';
 import { environment } from '../environment';
 import { Query } from '../query';
 import { WindDirection } from './WindDirection';
-import { getDataKey, WIND_DIRECTIONS } from '../utils';
+import { getDataKey, WIND_DIRECTIONS, TopRouteProps } from '../utils';
 import { Loader } from '../components';
-import { RouteComponentProps, withRouter } from 'react-router-dom';
+import { withRouter } from 'react-router-dom';
 
 const RECORDS_BACK = 3;
 
@@ -44,7 +44,7 @@ const Age: React.FC<{ row: Query.Row }> = ({ row }) => {
 }
 
  // TODO: render every minute
-export class CurrentBase extends React.Component<RouteComponentProps<{ site: string }>> {
+export class CurrentBase extends React.Component<TopRouteProps> {
   private renderInterval: ReturnType<typeof setInterval>;
 
   componentDidMount() {
@@ -58,6 +58,7 @@ export class CurrentBase extends React.Component<RouteComponentProps<{ site: str
   renderData(ctx: Query.Context) {
     const recordGroups = _.values(_.groupBy(ctx.data, record => record['time'].ScalarValue));
     const windDirections = recordGroups.map(getWindDirections);
+    const dataKey = getDataKey(this.props.match);
 
     return <>
       <div className="row">
@@ -89,18 +90,20 @@ export class CurrentBase extends React.Component<RouteComponentProps<{ site: str
                 <th scope="row">Dominant Direction</th>
                 {recordGroups.map((records, i) => <td key={i}>{getDominantDirection(windDirections[i])}</td>)}
               </tr>
-              <tr>
-                <th scope="row">Temperature</th>
-                {recordGroups.map((records, i) => <td key={i}>{getRecord(records, 'temperature').toFixed(1)} °C</td>)}
-              </tr>
-              <tr>
-                <th scope="row">Humidity</th>
-                {recordGroups.map((records, i) => <td key={i}>{getRecord(records, 'humidity')} %</td>)}
-              </tr>
-              <tr>
-                <th scope="row">Pressure</th>
-                {recordGroups.map((records, i) => <td key={i}>{getRecord(records, 'pressure')} hPa</td>)}
-              </tr>
+              {dataKey === 'woodside' && <>
+                <tr>
+                  <th scope="row">Temperature</th>
+                  {recordGroups.map((records, i) => <td key={i}>{getRecord(records, 'temperature').toFixed(1)} °C</td>)}
+                </tr>
+                <tr>
+                  <th scope="row">Humidity</th>
+                  {recordGroups.map((records, i) => <td key={i}>{getRecord(records, 'humidity')} %</td>)}
+                </tr>
+                <tr>
+                  <th scope="row">Pressure</th>
+                  {recordGroups.map((records, i) => <td key={i}>{getRecord(records, 'pressure')} hPa</td>)}
+                </tr>
+              </>}
             </tbody>
           </table>
         </div>

@@ -1,3 +1,5 @@
+import type { RouteComponentProps } from 'react-router-dom';
+
 export type RecursivePartial<T> = {
   [P in keyof T]?: RecursivePartial<T[P]>;
 };
@@ -29,9 +31,11 @@ export const WIND_DIRECTIONS: WindDirection[] = [
   'NW',
 ];
 
+export type TopRouteProps = RouteComponentProps<{ site: string }>;
+
 export const getDataKey = (match: { params: { site: string } }) => {
   switch(match.params.site) {
-    case 'bridal-falls-lz': return 'pemberton';
+    case 'bridal-falls-lz': return 'bridal';
     default: return match.params.site || 'unknown';
   }
 };
