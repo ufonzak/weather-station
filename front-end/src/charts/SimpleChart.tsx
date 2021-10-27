@@ -1,5 +1,6 @@
 import React from 'react';
 import moment from 'moment';
+import { withRouter } from 'react-router-dom';
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, YAxis } from 'recharts';
 
 import { environment } from '../environment';
@@ -7,20 +8,21 @@ import { Query } from '../query';
 import { Range } from './utils';
 import { timeAxis } from './TimeAxis';
 import { ChartLoader } from './ChartLoader';
+import { getDataKey, TopRouteProps } from '../utils';
 
 interface Point {
   time: number;
   value: number;
 }
 
-interface Props {
+interface Props extends TopRouteProps {
   refreshKey?: number | string;
   measurement: string;
   range: Range;
   label?: string;
 }
 
-export class SimpleChart extends React.Component<Props> {
+class SimpleChartBase extends React.Component<Props> {
   transformData(data: Query.Rows): Point[] { // TODO: memoize
     return data?.map((record): Point => ({
       time: moment.utc(record['time'].ScalarValue).valueOf(),
@@ -48,7 +50,7 @@ export class SimpleChart extends React.Component<Props> {
   }
 
   render() {
-    const { range, refreshKey, measurement } = this.props;
+    const { range, refreshKey, measurement, match } = this.props;
 
     const query = `
 SELECT
@@ -56,7 +58,7 @@ time,
 measure_name as name,
 measure_value::double as value
 FROM ${environment.databaseName}.records
-WHERE station = 'woodside' AND time > ago(${range})
+WHERE station = '${getDataKey(match)}' AND time > ago(${range})
 AND measure_name = '${measurement}'
 ORDER BY time
       `.trim();
@@ -64,3 +66,5 @@ ORDER BY time
     return <Query query={query} refreshKey={refreshKey}>{this.renderData.bind(this)}</Query>;
   }
 }
+
+export const SimpleChart = withRouter(SimpleChartBase);

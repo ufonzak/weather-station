@@ -1,0 +1,13 @@
+.site-picker {
+  .form-select {
+    @include font-size($h1-font-size);
+    font-weight: $headings-font-weight;
+    cursor: pointer;
+  }
+
+  @include media-breakpoint-up(xl) {
+    .form-select {
+      max-width: fit-content;
+    }
+  }
+}
