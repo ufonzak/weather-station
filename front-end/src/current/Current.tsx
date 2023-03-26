@@ -7,6 +7,7 @@ import { WindDirection } from './WindDirection';
 import { getDataKey, WIND_DIRECTIONS, TopRouteProps } from '../utils';
 import { Loader } from '../components';
 import { withRouter } from 'react-router-dom';
+import { Camera } from './Camera';
 
 const RECORDS_BACK = 3;
 
@@ -43,7 +44,6 @@ const Age: React.FC<{ row: Query.Row }> = ({ row }) => {
   return <>{diff.hours() > 0 && <>{diff.hours()}&nbsp;h</>} {diff.minutes()}&nbsp;m</>;
 }
 
- // TODO: render every minute
 export class CurrentBase extends React.Component<TopRouteProps> {
   private renderInterval: ReturnType<typeof setInterval>;
 
@@ -58,7 +58,6 @@ export class CurrentBase extends React.Component<TopRouteProps> {
   renderData(ctx: Query.Context) {
     const recordGroups = _.values(_.groupBy(ctx.data, record => record['time'].ScalarValue));
     const windDirections = recordGroups.map(getWindDirections);
-    const dataKey = getDataKey(this.props.match);
 
     return <>
       <div className="row">
@@ -107,14 +106,17 @@ export class CurrentBase extends React.Component<TopRouteProps> {
             </tbody>
           </table>
         </div>
-        <div className="row wind-direction">
-          {recordGroups.map((records, i) => (
-            <div key={i} className="col-md chart">
-              <WindDirection wind={windDirections[i]} legend={<><Age row={records[0]}/> ago</>}/>
-            </div>
-          ))}
-          {recordGroups.length === 0 && <div className="col spacer"/>}
-        </div>
+      </div>
+
+      <Camera/>
+
+      <div className="row wind-direction">
+        {recordGroups.map((records, i) => (
+          <div key={i} className="col-md chart">
+            <WindDirection wind={windDirections[i]} legend={<><Age row={records[0]}/> ago</>}/>
+          </div>
+        ))}
+        {recordGroups.length === 0 && <div className="col spacer"/>}
       </div>
     </>;
   }
