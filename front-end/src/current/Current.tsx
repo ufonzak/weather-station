@@ -90,7 +90,7 @@ export class CurrentBase extends React.Component<TopRouteProps> {
                 <th scope="row">Dominant Direction</th>
                 {recordGroups.map((records, i) => <td key={i}>{getDominantDirection(windDirections[i])}</td>)}
               </tr>
-              {dataKey === 'woodside' && <>
+              {false && <>
                 <tr>
                   <th scope="row">Temperature</th>
                   {recordGroups.map((records, i) => <td key={i}>{getRecord(records, 'temperature').toFixed(1)} °C</td>)}
