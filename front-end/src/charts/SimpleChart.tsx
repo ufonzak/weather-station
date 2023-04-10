@@ -6,7 +6,7 @@ import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, Y
 import { environment } from '../environment';
 import { Query } from '../query';
 import { Range } from './utils';
-import { timeAxis } from './TimeAxis';
+import { formatRange, timeAxis } from './TimeAxis';
 import { ChartLoader } from './ChartLoader';
 import { getDataKey, TopRouteProps } from '../utils';
 
@@ -58,7 +58,7 @@ time,
 measure_name as name,
 measure_value::double as value
 FROM ${environment.databaseName}.records
-WHERE station = '${getDataKey(match)}' AND time > ago(${range})
+WHERE station = '${getDataKey(match)}' AND time > ${formatRange(range)}
 AND measure_name = '${measurement}'
 ORDER BY time
       `.trim();

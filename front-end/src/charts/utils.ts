@@ -5,4 +5,4 @@ export function findMeasure(rows: Query.Rows, measureName: string, valueName: st
   return measure && parseFloat(measure[valueName].ScalarValue);
 }
 
-export type Range = '1d' | '2d' | '7d';
+export type Range = 'today' | '1d' | '2d' | '7d';

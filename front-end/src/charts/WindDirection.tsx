@@ -8,7 +8,7 @@ import { environment } from '../environment';
 import { Query } from '../query';
 import { getDataKey, WindDirection, WIND_DIRECTIONS, TopRouteProps } from '../utils';
 import { Range } from './utils';
-import { timeAxis } from './TimeAxis';
+import { formatRange, timeAxis } from './TimeAxis';
 import { ChartLoader } from './ChartLoader';
 
 const measures = _.range(8).map(i => `wind_direction${i}_1h`);
@@ -78,13 +78,14 @@ export class WindDirectionChartBase extends React.Component<Props> {
 
     const query = `
 SELECT
-(time - 30m) as time,
+element_at(array_agg(time), -1) as time,
 measure_name as name,
-measure_value::double as value
+element_at(array_agg(measure_value::double), -1) as value
 FROM ${environment.databaseName}.records
-WHERE station = '${getDataKey(match)}' AND time > ago(${range})
+WHERE station = '${getDataKey(match)}' AND time > ${formatRange(range)}
 AND measure_name IN (${measures.map(measure => `'${measure}'`).join()})
-ORDER BY time
+GROUP BY bin(time, 1h), measure_name
+ORDER BY 1
       `.trim();
 
     return <Query query={query} refreshKey={refreshKey}>{this.renderData.bind(this)}</Query>;

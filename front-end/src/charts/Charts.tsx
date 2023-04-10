@@ -24,7 +24,7 @@ const CHART_LABELS = {
   'precipitation': 'Precipitation',
   'solar_voltage': 'Solar Voltage',
   'battery_voltage2': 'Battery Voltage',
-}
+};
 const UNITS: Partial<Record<AllCharts, string>> = {
   'temperature': '°C',
   'pressure': 'hPa',
@@ -32,7 +32,13 @@ const UNITS: Partial<Record<AllCharts, string>> = {
   'precipitation': 'mm',
   'solar_voltage': 'V',
   'battery_voltage2': 'V',
-}
+};
+const IGNORED: Partial<Record<AllCharts, boolean>> = {
+  'temperature': true,
+  'pressure': true,
+  'humidity': true,
+  'precipitation': true,
+};
 
 const ChartPick: React.FC<{ current: AllCharts, onPick: (chart: AllCharts) => void }> = ({ current, onPick }) => (
   <div className="dropdown">
@@ -40,18 +46,21 @@ const ChartPick: React.FC<{ current: AllCharts, onPick: (chart: AllCharts) => vo
       {CHART_LABELS[current]}&ensp;
     </button>
     <ul className="dropdown-menu" aria-labelledby="dropdownMenuButton1">
-      {(Object.keys(CHART_LABELS) as AllCharts[]).map(chart =>
-        <li key={chart}>
-          <a className="dropdown-item"
-            onClick={() => onPick(chart)}>{CHART_LABELS[chart]}
-          </a>
-        </li>
-      )}
+      {(Object.keys(CHART_LABELS) as AllCharts[])
+        .filter(chart => !IGNORED[chart])
+        .map(chart =>
+          <li key={chart}>
+            <a className="dropdown-item"
+              onClick={() => onPick(chart)}>{CHART_LABELS[chart]}
+            </a>
+          </li>
+        )}
     </ul>
   </div>
 );
 
 const RANGE_LABELS = {
+  'today': 'Today',
   '1d': '1 day',
   '2d': '2 days',
   '7d': '1 week',
@@ -80,7 +89,7 @@ export class Charts extends React.Component<Props, State> {
 
     this.state = {
       current: 'wind',
-      range: '1d',
+      range: 'today',
       refreshKey: 0,
     };
   }

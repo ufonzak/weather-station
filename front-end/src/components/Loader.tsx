@@ -3,10 +3,11 @@ import classNames from 'classnames';
 
 export type Props = React.DetailedHTMLProps<React.HTMLAttributes<HTMLDivElement>, HTMLDivElement>;
 
-export const Loader: React.FC<Props> = ({ className, ...rest }) => (
+export const Loader: React.FC<Props> = ({ className, children, ...rest }) => (
   <div className={classNames('loader', className)}>
     <div className="spinner-border" role="status" {...rest}>
       <span className="visually-hidden">Loading...</span>
     </div>
+    {children}
   </div>
 );
