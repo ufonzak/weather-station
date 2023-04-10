@@ -324,8 +324,6 @@ void procesInput() {
     printPrecipitation(NULL, false);
   } else if (strcmp(cmd, "bme") == 0) {
     printBmeData(NULL);
-  } else if (strcmp(cmd, "resetbme") == 0) {
-    setupBme();
   } else if (strcmp(cmd, "battery_t") == 0) {
     Serial.println(analogRead(BATTERY_TEMP_PIN));
     Serial.println(readBatteryTemperature());
