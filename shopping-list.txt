@@ -1,0 +1,18 @@
+Adafruit:
+1 x Adafruit Universal USB / DC / Solar Lithium Ion/Polymer charger (bq24074) [ID:4755] = $19.90
+1 x Large 6V 3.5W Solar panel (3.5 Watt) [ID:500] = $45.00
+1 x 10K Precision Epoxy Thermistor (3950 NTC) [ID:372] = $4.00
+1 x 3.5mm / 1.1mm to 5.5mm / 2.1mm DC Jack Adapter[ID:4287] = $1.50
+1 x Lithium Ion Battery Pack - 3.7V 6600mAh[ID:353] = $29.50
+1 x Header Kit for Feather - 12-pin and 16-pin Female Header Set[ID:2886] = $0.95
+1 x Adafruit Feather 32u4 Basic Proto[ID:2771] = $19.95
+1 x Short Feather Male Headers - 12-pin and 16-pin Male Header Set[ID:3002] = $0.50
+1 x Adafruit FONA - Mini Cellular GSM Breakout - SMA Version (v1) [ID:1963] = $44.95
+1 x Right-angle Mini GSM/Cellular Quad-Band Antenna - 2dBi SMA Plug[ID:1858] = $4.95
+1 x Adafruit BME280 I2C or SPI Temperature Humidity Pressure Sensor (STEMMA QT) [ID:2652] = $14.95
+1 x STEMMA QT / Qwiic JST SH 4-pin to Premium Male Headers Cable (150mm Long) [ID:4209] = $0.95
+Sensor:
+https://www.sparkfun.com/products/15901
+https://www.digikey.ca/en/products/detail/sparkfun-electronics/SEN-15901/11570533
+Other:
+Box and waterproof connectors (RJ11 and generic)
